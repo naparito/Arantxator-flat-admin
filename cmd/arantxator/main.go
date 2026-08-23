@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os/exec"
@@ -33,7 +34,11 @@ func main() {
 	mux.Handle("/", webui.Handler())
 
 	url := "http://" + cfg.Addr
-	log.Printf("Arantxator Flat Admin escuchando en %s (base de datos: %s)", url, cfg.DBPath)
+	// fmt.Println, no log.Printf: es un mensaje informativo, no un error.
+	// log escribe por stderr por defecto, y algunas terminales (PowerShell
+	// 5.1 con un proceso nativo) pintan cualquier línea de stderr como si
+	// fuera un error, aunque el arranque haya ido bien.
+	fmt.Printf("Arantxator Flat Admin escuchando en %s (base de datos: %s)\n", url, cfg.DBPath)
 	go openBrowser(url)
 
 	if err := http.ListenAndServe(cfg.Addr, mux); err != nil {
