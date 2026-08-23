@@ -40,9 +40,13 @@ type Inmueble struct {
 	CertificadoEnergeticoLetra     string         `json:"certificadoEnergeticoLetra"`
 	CertificadoEnergeticoCaducidad *time.Time     `json:"certificadoEnergeticoCaducidad"`
 	Estado                         EstadoInmueble `json:"estado"`
-	Suministros                    Suministros    `json:"suministros"`
-	CreadoEn                       time.Time      `json:"creadoEn"`
-	ActualizadoEn                  time.Time      `json:"actualizadoEn"`
+	// Compartido indica que el inmueble se alquila por habitaciones en
+	// lugar de a un único arrendatario; activa el submódulo de
+	// habitaciones (ver domain.Habitacion).
+	Compartido    bool        `json:"compartido"`
+	Suministros   Suministros `json:"suministros"`
+	CreadoEn      time.Time   `json:"creadoEn"`
+	ActualizadoEn time.Time   `json:"actualizadoEn"`
 }
 
 // Suministro guarda los datos de contratación de una compañía suministradora

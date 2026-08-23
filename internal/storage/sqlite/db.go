@@ -16,6 +16,16 @@ func Open(path string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("abriendo sqlite: %w", err)
 	}
+	// SQLite trae las claves foráneas desactivadas por defecto (por
+	// compatibilidad histórica): sin esto, los ON DELETE CASCADE/RESTRICT/SET
+	// NULL del esquema (documentos, incidencias, habitaciones, contratos…)
+	// no se aplican de verdad. Una única conexión evita depender de que el
+	// pool reabra la pragma en cada conexión nueva — razonable en una app
+	// mono-usuario donde SQLite ya serializa las escrituras.
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
+		return nil, fmt.Errorf("activando claves foráneas: %w", err)
+	}
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("conectando a sqlite: %w", err)
 	}

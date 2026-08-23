@@ -30,7 +30,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	httpapi.RegisterRoutes(mux, db)
-	mux.Handle("/", http.FileServer(http.FS(webui.Assets)))
+	mux.Handle("/", webui.Handler())
 
 	url := "http://" + cfg.Addr
 	log.Printf("Arantxator Flat Admin escuchando en %s (base de datos: %s)", url, cfg.DBPath)

@@ -1,4 +1,4 @@
-import type { Documento, Inmueble, InmuebleInput } from './types'
+import type { Documento, Habitacion, HabitacionInput, Inmueble, InmuebleInput } from './types'
 
 const API_BASE = '/api'
 
@@ -40,6 +40,12 @@ export const api = {
     return request<Documento>(`/inmuebles/${inmuebleId}/documentos`, { method: 'POST', body: form })
   },
   documentoUrl: (id: number) => `${API_BASE}/documentos/${id}`,
+  listHabitaciones: (inmuebleId: number) => request<Habitacion[]>(`/inmuebles/${inmuebleId}/habitaciones`),
+  createHabitacion: (inmuebleId: number, data: HabitacionInput) =>
+    request<Habitacion>(`/inmuebles/${inmuebleId}/habitaciones`, { method: 'POST', body: JSON.stringify(data) }),
+  updateHabitacion: (id: number, data: HabitacionInput) =>
+    request<Habitacion>(`/habitaciones/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteHabitacion: (id: number) => request<void>(`/habitaciones/${id}`, { method: 'DELETE' }),
 }
 
 export type EstadoFilter = Inmueble['estado'] | undefined

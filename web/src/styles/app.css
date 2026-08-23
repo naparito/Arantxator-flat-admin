@@ -429,7 +429,8 @@
   flex-direction: column;
   gap: 5px;
 }
-.field.span-2 {
+.field.span-2,
+.field-check.span-2 {
   grid-column: span 2;
 }
 .field label {

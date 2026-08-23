@@ -32,6 +32,7 @@ function inmueble(overrides: Partial<Inmueble>): Inmueble {
     certificadoEnergeticoLetra: '',
     certificadoEnergeticoCaducidad: null,
     estado: 'alquilado',
+    compartido: false,
     suministros: { luz: { compania: '', numeroContrato: '', titular: '' }, agua: { compania: '', numeroContrato: '', titular: '' }, gas: { compania: '', numeroContrato: '', titular: '' }, internet: { compania: '', numeroContrato: '', titular: '' } },
     creadoEn: '',
     actualizadoEn: '',
