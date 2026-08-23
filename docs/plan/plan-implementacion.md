@@ -307,7 +307,42 @@ npm install
 npm run dev
 ```
 
-`npm run dev` levanta el servidor de desarrollo de Vite con recarga en caliente, hablando con la API real en `http://127.0.0.1:8080`. Para probar el binario final tal como lo vería un usuario:
+`npm run dev` levanta el servidor de desarrollo de Vite con recarga en caliente, hablando con la API real en `http://127.0.0.1:8080`.
+
+#### ⚠️ Persistencia de datos con `go run`
+
+Por defecto (`internal/config/config.go`), `arantxator.db` se guarda **junto
+al ejecutable en marcha**. `go run` compila un binario temporal en una
+carpeta distinta y aleatoria en cada ejecución (algo del estilo
+`%TEMP%\go-buildNNNNNN\...`), así que cada `go run ./cmd/arantxator` busca
+la base de datos en un sitio nuevo: no es que los datos se borren, es que la
+app nunca vuelve a encontrar el fichero de la vez anterior. Para hacer
+pruebas con persistencia real entre arranques, fija la ruta explícitamente
+con la variable `ARANTXATOR_DB_PATH` antes de lanzar `go run`:
+
+```bash
+# Bash (Git Bash / WSL)
+export ARANTXATOR_DB_PATH="$HOME/arantxator-dev.db"
+go run ./cmd/arantxator
+```
+
+```powershell
+# PowerShell
+$env:ARANTXATOR_DB_PATH = "$HOME\arantxator-dev.db"
+go run ./cmd/arantxator
+```
+
+Con la variable fijada, todos los `go run` sucesivos de esa terminal leen y
+escriben el mismo fichero. Para empezar de cero basta con borrar ese
+fichero (y los `*.db-wal`/`*.db-shm` que haya junto a él, si los hay). El
+puerto también se puede fijar con `ARANTXATOR_ADDR` (por defecto
+`127.0.0.1:8080`) si hace falta levantar varias instancias a la vez.
+
+Compilando el binario (ver justo abajo) este problema no existe: al vivir
+siempre en la misma ruta (`bin/arantxator.exe`), `arantxator.db` persiste
+entre arranques sin necesidad de fijar nada.
+
+#### Probar el binario final tal como lo vería un usuario
 
 ```bash
 cd web && npm run build     # genera internal/webui/dist/
@@ -316,7 +351,23 @@ go build -o bin/arantxator.exe ./cmd/arantxator
 ./bin/arantxator.exe        # abre el navegador solo, en http://127.0.0.1:8080
 ```
 
-Los datos se guardan en `arantxator.db` junto al ejecutable (o en la ruta que indique la variable `ARANTXATOR_DB_PATH`); para empezar de cero basta con borrar ese fichero.
+`go build` genera un único `.exe` autocontenido: la SPA compilada va
+embebida con `go:embed` y SQLite es un driver puro Go (sin CGO), así que no
+hace falta ningún fichero ni DLL adicional junto al ejecutable — solo
+`arantxator.db`, que se crea solo la primera vez que arranca. Es exactamente
+el mismo binario, generado con el mismo comando (`go build -o
+bin/arantxator.exe ./cmd/arantxator`), que acaba empaquetado en el
+instalador del Hito 7: `scripts/build.ps1` no compila "para producción" de
+otra forma, simplemente encadena este mismo `go build` con Inno Setup, que
+copia ese `.exe` ya construido y le añade accesos directos y desinstalador
+(ver [`docs/despliegue/instalacion-despliegue.md`](../despliegue/instalacion-despliegue.md)).
+No hay dos procesos de compilación distintos (uno manual "de desarrollo" y
+otro "del instalador"): siempre es este `go build`, ejecutado a mano aquí o
+disparado automáticamente por `scripts/build.ps1`.
+
+Los datos se guardan en `arantxator.db` junto al ejecutable (o en la ruta
+que indique `ARANTXATOR_DB_PATH`); para empezar de cero basta con borrar ese
+fichero.
 
 ### Instalación final: cómo lo instala el usuario
 
