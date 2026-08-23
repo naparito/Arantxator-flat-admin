@@ -1,5 +1,6 @@
 # Binarios compilados
 /bin/
+/dist/
 *.exe
 *.test
 *.out
