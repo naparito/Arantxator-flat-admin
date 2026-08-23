@@ -9,7 +9,7 @@ type Inquilino struct {
 	ID                         int64      `json:"id"`
 	NombreCompleto             string     `json:"nombreCompleto"`
 	DocumentoIdentidad         string     `json:"documentoIdentidad"`
-	FechaNacimiento            *time.Time `json:"fechaNacimiento"`
+	FechaNacimiento            *Fecha     `json:"fechaNacimiento"`
 	Telefono                   string     `json:"telefono"`
 	Email                      string     `json:"email"`
 	Nacionalidad               string     `json:"nacionalidad"`

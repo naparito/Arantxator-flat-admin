@@ -38,7 +38,7 @@ type Inmueble struct {
 	Amueblado                      bool           `json:"amueblado"`
 	AnioConstruccion               int            `json:"anioConstruccion"`
 	CertificadoEnergeticoLetra     string         `json:"certificadoEnergeticoLetra"`
-	CertificadoEnergeticoCaducidad *time.Time     `json:"certificadoEnergeticoCaducidad"`
+	CertificadoEnergeticoCaducidad *Fecha         `json:"certificadoEnergeticoCaducidad"`
 	Estado                         EstadoInmueble `json:"estado"`
 	// Compartido indica que el inmueble se alquila por habitaciones en
 	// lugar de a un único arrendatario; activa el submódulo de

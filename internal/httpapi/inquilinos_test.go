@@ -59,6 +59,38 @@ func TestAPI_CrearYLeerInquilino(t *testing.T) {
 	}
 }
 
+// TestAPI_CrearInquilinoConFechaNacimiento cubre el formato de fecha que
+// manda de verdad un <input type="date"> ("AAAA-MM-DD", sin hora ni zona):
+// json.Unmarshal en un *time.Time desnudo exige RFC3339 completo y rechaza
+// ese formato con un 400 genérico ("cuerpo de la petición inválido") — de
+// ahí domain.Fecha.
+func TestAPI_CrearInquilinoConFechaNacimiento(t *testing.T) {
+	srv, _ := newTestServer(t)
+
+	resp, creado := postInquilino(t, srv, map[string]any{
+		"nombreCompleto":     "Pablito el piscinas",
+		"documentoIdentidad": "76719716L",
+		"fechaNacimiento":    "1974-10-31",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("esperaba 201 con fechaNacimiento en formato AAAA-MM-DD, obtuve %d: %+v", resp.StatusCode, creado)
+	}
+	if creado["fechaNacimiento"] != "1974-10-31" {
+		t.Fatalf("esperaba la fecha de nacimiento tal cual en la respuesta, obtuve %v", creado["fechaNacimiento"])
+	}
+
+	getResp, err := http.Get(fmt.Sprintf("%s/api/inquilinos/%v", srv.URL, creado["id"]))
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer getResp.Body.Close()
+	var leido map[string]any
+	json.NewDecoder(getResp.Body).Decode(&leido)
+	if leido["fechaNacimiento"] != "1974-10-31" {
+		t.Fatalf("la fecha de nacimiento no persistió correctamente: %+v", leido)
+	}
+}
+
 func TestAPI_CrearInquilinoSinCamposObligatorios(t *testing.T) {
 	srv, _ := newTestServer(t)
 
