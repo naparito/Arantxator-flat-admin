@@ -125,6 +125,53 @@ func handleUpdateHabitacion(habitaciones *sqlite.HabitacionesRepo) http.HandlerF
 	}
 }
 
+type asignarOcupanteRequest struct {
+	InquilinoID *int64 `json:"inquilinoId"`
+}
+
+// handleAsignarOcupanteHabitacion asigna o quita (inquilinoId nulo) el
+// inquilino ocupante de una habitación. Es una asignación de presentación
+// (quién vive hoy ahí), independiente del contrato — ver domain.Habitacion.
+func handleAsignarOcupanteHabitacion(habitaciones *sqlite.HabitacionesRepo, inquilinos *sqlite.InquilinosRepo) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "id de habitación inválido")
+			return
+		}
+		if _, err := habitaciones.Get(id); errors.Is(err, sqlite.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "habitación no encontrada")
+			return
+		} else if err != nil {
+			writeError(w, http.StatusInternalServerError, "no se pudo comprobar la habitación")
+			return
+		}
+
+		var body asignarOcupanteRequest
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeError(w, http.StatusBadRequest, "cuerpo de la petición inválido")
+			return
+		}
+
+		if body.InquilinoID != nil {
+			if _, err := inquilinos.Get(*body.InquilinoID); errors.Is(err, sqlite.ErrNotFound) {
+				writeError(w, http.StatusNotFound, "inquilino no encontrado")
+				return
+			} else if err != nil {
+				writeError(w, http.StatusInternalServerError, "no se pudo comprobar el inquilino")
+				return
+			}
+		}
+
+		actualizada, err := habitaciones.AsignarOcupante(id, body.InquilinoID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "no se pudo asignar el ocupante")
+			return
+		}
+		writeJSON(w, http.StatusOK, actualizada)
+	}
+}
+
 func handleDeleteHabitacion(habitaciones *sqlite.HabitacionesRepo) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)

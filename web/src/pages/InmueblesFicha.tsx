@@ -1,7 +1,7 @@
 import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
-import type { Documento, Habitacion, HabitacionInput, Inmueble, Suministro, Suministros } from '../api/types'
+import type { Documento, Habitacion, HabitacionInput, Inmueble, Inquilino, Suministro, Suministros } from '../api/types'
 import { EstadoPill } from '../components/EstadoPill'
 import { IconCasa, IconChevronRight, IconDoc } from '../components/icons'
 
@@ -312,16 +312,35 @@ const HABITACION_VACIA: HabitacionInput = { nombre: '', m2: 0, tieneBano: false,
 
 function HabitacionesTab({ inmuebleId }: { inmuebleId: number }) {
   const [habitaciones, setHabitaciones] = useState<Habitacion[] | null>(null)
+  const [inquilinos, setInquilinos] = useState<Inquilino[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [nueva, setNueva] = useState<HabitacionInput>(HABITACION_VACIA)
   const [creando, setCreando] = useState(false)
+  const [asignando, setAsignando] = useState<number | null>(null)
 
   useEffect(() => {
     api
       .listHabitaciones(inmuebleId)
       .then(setHabitaciones)
       .catch((err) => setError(err instanceof Error ? err.message : 'No se pudieron cargar las habitaciones'))
+    api
+      .listInquilinos()
+      .then(setInquilinos)
+      .catch((err) => setError(err instanceof Error ? err.message : 'No se pudieron cargar los inquilinos'))
   }, [inmuebleId])
+
+  async function onAsignarOcupante(habitacionId: number, inquilinoId: number | null) {
+    setAsignando(habitacionId)
+    setError(null)
+    try {
+      const actualizada = await api.asignarOcupante(habitacionId, inquilinoId)
+      setHabitaciones((prev) => (prev ?? []).map((h) => (h.id === habitacionId ? actualizada : h)))
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo asignar el ocupante')
+    } finally {
+      setAsignando(null)
+    }
+  }
 
   async function onCrear(e: FormEvent) {
     e.preventDefault()
@@ -357,20 +376,40 @@ function HabitacionesTab({ inmuebleId }: { inmuebleId: number }) {
         {habitaciones !== null && habitaciones.length === 0 && (
           <div className="empty-state">Todavía no hay habitaciones. Da de alta la primera abajo.</div>
         )}
-        {habitaciones?.map((h) => (
-          <div key={h.id} className="doc-row">
-            <span className="name">{h.nombre}</span>
-            <span className="meta">
-              {h.m2 ? `${h.m2} m²` : '—'}
-              {h.tieneBano ? ' · con baño' : ''}
-              {h.amueblada ? ' · amueblada' : ''}
-            </span>
-            <span className="meta">{h.inquilinoId ? `Ocupante #${h.inquilinoId}` : 'Sin asignar'}</span>
-            <button type="button" className="btn-ghost" onClick={() => onBorrar(h.id)}>
-              Borrar
-            </button>
-          </div>
-        ))}
+        {habitaciones?.map((h) => {
+          // Solo se pueden elegir inquilinos que no ocupen ya otra habitación de este mismo inmueble.
+          const ocupantesDeOtrasHabitaciones = new Set(
+            (habitaciones ?? []).filter((otra) => otra.id !== h.id && otra.inquilinoId != null).map((otra) => otra.inquilinoId),
+          )
+          const opciones = (inquilinos ?? []).filter((i) => i.id === h.inquilinoId || !ocupantesDeOtrasHabitaciones.has(i.id))
+
+          return (
+            <div key={h.id} className="doc-row">
+              <span className="name">{h.nombre}</span>
+              <span className="meta">
+                {h.m2 ? `${h.m2} m²` : '—'}
+                {h.tieneBano ? ' · con baño' : ''}
+                {h.amueblada ? ' · amueblada' : ''}
+              </span>
+              <select
+                aria-label={`Ocupante de ${h.nombre}`}
+                value={h.inquilinoId ?? ''}
+                disabled={asignando === h.id}
+                onChange={(e) => onAsignarOcupante(h.id, e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">Sin asignar</option>
+                {opciones.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.nombreCompleto}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="btn-ghost" onClick={() => onBorrar(h.id)}>
+                Borrar
+              </button>
+            </div>
+          )
+        })}
       </div>
 
       <form className="form" onSubmit={onCrear} style={{ maxWidth: 'none' }}>

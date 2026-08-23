@@ -100,9 +100,23 @@ func (r *HabitacionesRepo) Update(id int64, h domain.Habitacion) (domain.Habitac
 }
 
 // AsignarOcupante asigna (o, con inquilinoID nulo, quita) el inquilino
-// ocupante de una habitación.
+// ocupante de una habitación. Una persona no puede ocupar dos habitaciones a
+// la vez: si el inquilino ya ocupaba otra, esa otra se libera automáticamente
+// en la misma transacción.
 func (r *HabitacionesRepo) AsignarOcupante(id int64, inquilinoID *int64) (domain.Habitacion, error) {
-	res, err := r.db.Exec(`UPDATE habitaciones SET inquilino_id = ?, actualizado_en = CURRENT_TIMESTAMP WHERE id = ?`, inquilinoID, id)
+	tx, err := r.db.Begin()
+	if err != nil {
+		return domain.Habitacion{}, fmt.Errorf("iniciando transacción para asignar ocupante: %w", err)
+	}
+	defer tx.Rollback()
+
+	if inquilinoID != nil {
+		if _, err := tx.Exec(`UPDATE habitaciones SET inquilino_id = NULL, actualizado_en = CURRENT_TIMESTAMP WHERE inquilino_id = ? AND id != ?`, *inquilinoID, id); err != nil {
+			return domain.Habitacion{}, fmt.Errorf("liberando habitación anterior del inquilino %d: %w", *inquilinoID, err)
+		}
+	}
+
+	res, err := tx.Exec(`UPDATE habitaciones SET inquilino_id = ?, actualizado_en = CURRENT_TIMESTAMP WHERE id = ?`, inquilinoID, id)
 	if err != nil {
 		return domain.Habitacion{}, fmt.Errorf("asignando ocupante de la habitación %d: %w", id, err)
 	}
@@ -112,6 +126,9 @@ func (r *HabitacionesRepo) AsignarOcupante(id int64, inquilinoID *int64) (domain
 	}
 	if n == 0 {
 		return domain.Habitacion{}, ErrNotFound
+	}
+	if err := tx.Commit(); err != nil {
+		return domain.Habitacion{}, fmt.Errorf("confirmando asignación de ocupante de la habitación %d: %w", id, err)
 	}
 	return r.Get(id)
 }

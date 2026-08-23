@@ -1,6 +1,6 @@
-// Package httpapi expone la API HTTP interna que consume la SPA. El módulo
-// de Inmuebles es el primero; Inquilinos, Contratos, Gastos e Incidencias
-// se añaden en iteraciones posteriores.
+// Package httpapi expone la API HTTP interna que consume la SPA. Inmuebles e
+// Inquilinos ya están completos; Contratos, Gastos e Incidencias se añaden
+// en iteraciones posteriores.
 package httpapi
 
 import (
@@ -17,6 +17,7 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 	inmuebles := sqlite.NewInmueblesRepo(db)
 	documentos := sqlite.NewDocumentosRepo(db)
 	habitaciones := sqlite.NewHabitacionesRepo(db)
+	inquilinos := sqlite.NewInquilinosRepo(db)
 
 	mux.HandleFunc("GET /api/inmuebles", handleListInmuebles(inmuebles))
 	mux.HandleFunc("POST /api/inmuebles", handleCreateInmueble(inmuebles))
@@ -30,6 +31,14 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 	mux.HandleFunc("GET /api/habitaciones/{id}", handleGetHabitacion(habitaciones))
 	mux.HandleFunc("PUT /api/habitaciones/{id}", handleUpdateHabitacion(habitaciones))
 	mux.HandleFunc("DELETE /api/habitaciones/{id}", handleDeleteHabitacion(habitaciones))
+	mux.HandleFunc("PUT /api/habitaciones/{id}/ocupante", handleAsignarOcupanteHabitacion(habitaciones, inquilinos))
+
+	mux.HandleFunc("GET /api/inquilinos", handleListInquilinos(inquilinos))
+	mux.HandleFunc("POST /api/inquilinos", handleCreateInquilino(inquilinos))
+	mux.HandleFunc("GET /api/inquilinos/{id}", handleGetInquilino(inquilinos))
+	mux.HandleFunc("PUT /api/inquilinos/{id}", handleUpdateInquilino(inquilinos))
+	mux.HandleFunc("POST /api/inquilinos/{id}/documentos", handleUploadDocumentoInquilino(inquilinos, documentos))
+	mux.HandleFunc("GET /api/inquilinos/{id}/documentos", handleListDocumentosInquilino(inquilinos, documentos))
 }
 
 func handleHealth(db *sql.DB) http.HandlerFunc {

@@ -16,6 +16,8 @@ vi.mock('../api/client', () => ({
     listHabitaciones: vi.fn(),
     createHabitacion: vi.fn(),
     deleteHabitacion: vi.fn(),
+    listInquilinos: vi.fn(),
+    asignarOcupante: vi.fn(),
   },
   ApiError: class ApiError extends Error {},
 }))
@@ -106,6 +108,8 @@ describe('InmueblesFicha — Habitaciones', () => {
     vi.mocked(api.listDocumentos).mockReset()
     vi.mocked(api.listHabitaciones).mockReset()
     vi.mocked(api.createHabitacion).mockReset()
+    vi.mocked(api.listInquilinos).mockReset()
+    vi.mocked(api.asignarOcupante).mockReset()
   })
 
   it('no muestra el tab Habitaciones en un inmueble no compartido', async () => {
@@ -122,6 +126,7 @@ describe('InmueblesFicha — Habitaciones', () => {
     vi.mocked(api.getInmueble).mockResolvedValue({ ...INMUEBLE_BASE, compartido: true })
     vi.mocked(api.listDocumentos).mockResolvedValue([])
     vi.mocked(api.listHabitaciones).mockResolvedValue([])
+    vi.mocked(api.listInquilinos).mockResolvedValue([])
     vi.mocked(api.createHabitacion).mockResolvedValue({
       id: 1,
       inmuebleId: 1,
@@ -146,7 +151,38 @@ describe('InmueblesFicha — Habitaciones', () => {
     await userEvent.click(screen.getByRole('button', { name: /añadir habitación/i }))
 
     await waitFor(() => expect(screen.getByText('Habitación 1')).toBeInTheDocument())
-    expect(screen.getByText('Sin asignar')).toBeInTheDocument()
+    expect(screen.getByLabelText(/ocupante de habitación 1/i)).toHaveValue('')
     expect(api.createHabitacion).toHaveBeenCalledWith(1, expect.objectContaining({ nombre: 'Habitación 1' }))
+  })
+
+  it('el selector de ocupante solo lista inquilinos libres en este inmueble', async () => {
+    vi.mocked(api.getInmueble).mockResolvedValue({ ...INMUEBLE_BASE, compartido: true })
+    vi.mocked(api.listDocumentos).mockResolvedValue([])
+    vi.mocked(api.listHabitaciones).mockResolvedValue([
+      { id: 10, inmuebleId: 1, nombre: 'Habitación 1', m2: 12, tieneBano: true, amueblada: false, notas: '', inquilinoId: null, creadoEn: '', actualizadoEn: '' },
+      { id: 11, inmuebleId: 1, nombre: 'Habitación 2', m2: 10, tieneBano: false, amueblada: false, notas: '', inquilinoId: 2, creadoEn: '', actualizadoEn: '' },
+    ])
+    vi.mocked(api.listInquilinos).mockResolvedValue([
+      { id: 1, nombreCompleto: 'Libre Uno', documentoIdentidad: 'x', fechaNacimiento: null, telefono: '', email: '', nacionalidad: '', contactoEmergenciaNombre: '', contactoEmergenciaTelefono: '', iban: '', creadoEn: '', actualizadoEn: '' },
+      { id: 2, nombreCompleto: 'Ya Ocupa Hab2', documentoIdentidad: 'y', fechaNacimiento: null, telefono: '', email: '', nacionalidad: '', contactoEmergenciaNombre: '', contactoEmergenciaTelefono: '', iban: '', creadoEn: '', actualizadoEn: '' },
+    ])
+    vi.mocked(api.asignarOcupante).mockResolvedValue({
+      id: 10, inmuebleId: 1, nombre: 'Habitación 1', m2: 12, tieneBano: true, amueblada: false, notas: '', inquilinoId: 1, creadoEn: '', actualizadoEn: '',
+    })
+
+    renderFicha()
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: /bravo murillo/i })).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: /habitaciones/i }))
+
+    await waitFor(() => expect(screen.getByText('Habitación 1')).toBeInTheDocument())
+
+    const selectorHab1 = screen.getByLabelText(/ocupante de habitación 1/i)
+    const opcionesHab1 = Array.from(selectorHab1.querySelectorAll('option')).map((o) => o.textContent)
+    expect(opcionesHab1).toContain('Libre Uno')
+    expect(opcionesHab1).not.toContain('Ya Ocupa Hab2')
+
+    await userEvent.selectOptions(selectorHab1, '1')
+    expect(api.asignarOcupante).toHaveBeenCalledWith(10, 1)
   })
 })
