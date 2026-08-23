@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --ink: #211f1c;
+  --ink-muted: #746b5c;
+  --ink-faint: #a89d8a;
+  --bg: #faf8f4;
+  --surface: #ffffff;
+  --border: #e7e1d4;
+  --border-soft: #f0ebe0;
+
+  --sidebar-bg: #23201b;
+  --sidebar-ink: #f3efe6;
+  --sidebar-ink-muted: #a99d88;
+
+  --inmuebles: oklch(60% 0.13 258);
+  --inmuebles-soft: oklch(95% 0.02 258);
+  --inmuebles-tint: oklch(65% 0.13 258 / 16%);
+  --inquilinos: oklch(58% 0.11 158);
+  --inquilinos-soft: oklch(95% 0.02 158);
+  --inquilinos-tint: oklch(65% 0.12 158 / 16%);
+  --contratos: oklch(64% 0.14 68);
+  --contratos-soft: oklch(95% 0.03 68);
+  --contratos-tint: oklch(70% 0.14 68 / 18%);
+  --gastos: oklch(58% 0.16 22);
+  --gastos-soft: oklch(95% 0.03 22);
+  --gastos-tint: oklch(62% 0.16 22 / 16%);
+
+  --good: oklch(56% 0.12 155);
+  --good-soft: oklch(95% 0.025 155);
+  --warn: oklch(66% 0.15 70);
+  --warn-soft: oklch(95% 0.035 70);
+  --critical: oklch(56% 0.18 25);
+  --critical-soft: oklch(95% 0.035 25);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  font-family: 'Public Sans', system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Instrument Sans', sans-serif;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--inmuebles);
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+}
