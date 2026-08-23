@@ -24,14 +24,29 @@ Cada hito de módulo se construye siempre **vertical, no por capas**: en el mism
 
 Hitos 1–6 entregan la v1.0-alpha funcional; el hito 7 es lo que la convierte en algo que un usuario sin conocimientos técnicos puede instalar y usar.
 
-## Decisión técnica pendiente: framework de la SPA
+## Stack de la SPA (confirmado)
 
-El backend y el esquema de datos ya están fijados (Go + SQLite, ver el análisis). Para el frontend, propongo:
+**React + Vite + TypeScript.** Vite compila a ficheros estáticos que se copian directamente a `internal/webui/dist/` para que `go:embed` los incluya en el binario — exactamente el flujo ya documentado en `web/README.md`. React porque es el ecosistema más grande y con más piezas ya resueltas (formularios, tablas, subida de ficheros) para un panel de administración con bastantes pantallas de datos.
 
-- **React + Vite + TypeScript.** Vite compila a ficheros estáticos que se copian directamente a `internal/webui/dist/` para que `go:embed` los incluya en el binario — exactamente el flujo ya documentado en `web/README.md`. React porque es el ecosistema más grande y con más piezas ya resueltas (formularios, tablas, subida de ficheros) para un panel de administración con bastantes pantallas de datos.
-- **Sin librería de componentes** (nada de Material UI / Ant Design): CSS plano reutilizando el mismo sistema de tokens de los mockups aprobados (Instrument Sans + Public Sans, paleta neutra cálida, un acento oklch por módulo) en un `tokens.css` compartido, para que la app final se vea igual que lo que ya validaste.
+Sin librería de componentes (nada de Material UI / Ant Design): CSS plano reutilizando el mismo sistema de tokens de los mockups aprobados (Instrument Sans + Public Sans, paleta neutra cálida, un acento oklch por módulo) en un `tokens.css` compartido, para que la app final se vea igual que lo ya validado.
 
-Si prefieres Vue o Svelte en su lugar, dímelo antes de empezar el Hito 1 — es la única decisión de este plan que conviene cerrar primero porque todo lo demás se construye encima.
+## Estrategia de pruebas
+
+Cada hito se da por terminado solo cuando pasa su batería de pruebas — no basta con que compile. Tres capas, de menor a mayor coste:
+
+1. **Pruebas de backend (Go).** `go test ./...` con tests por tabla (*table-driven*) en `internal/storage/sqlite/*_test.go` para cada repositorio, usando un fichero SQLite temporal con las migraciones aplicadas (no una base compartida). Los endpoints se prueban con `net/http/httptest` en `internal/httpapi/*_test.go`: código de estado, forma del JSON, y los casos de error (id inexistente, campo obligatorio ausente, valor fuera del `CHECK`). La lógica de negocio con reglas concretas (duración LAU, plazo de fianza, cálculo del reparto, transición de estados de contrato) lleva sus propios tests unitarios con valores numéricos conocidos, no solo "no lanza error".
+2. **Pruebas de frontend (React).** Vitest + React Testing Library (`npm test`) para los componentes con lógica propia: validación de formularios, pills de estado, cálculo de totales en pantalla.
+3. **Checklist manual sobre el binario real**, antes de dar por cerrado el PR de cada hito: se ejecuta `./bin/arantxator.exe` (o `go run`) igual que lo haría el usuario, y se repasa la batería de ese módulo a mano en el navegador. Esta checklist es **acumulativa**: al cerrar cada hito se vuelve a pasar también la de los hitos anteriores, para detectar si algo nuevo ha roto algo ya construido (no regresión).
+
+Cada hito, más abajo, incluye su batería concreta. Antes de la de cada módulo va la batería general, que se repite en todos.
+
+### Batería general (se repite en todos los hitos)
+
+- El binario compila (`go build`) y `go vet ./...` no da avisos.
+- Las migraciones se aplican limpiamente sobre una base de datos nueva (borrar `arantxator.db` y arrancar desde cero no falla).
+- La aplicación arranca y `/api/health` responde `ok`.
+- La GUI carga sin errores en la consola del navegador.
+- Se repite la checklist manual de todos los hitos anteriores (no regresión).
 
 ---
 
@@ -55,6 +70,23 @@ Ficha configurable por inmueble con identificación, características, certifica
 ### Criterio de aceptación
 Arrancar la app, dar de alta un inmueble desde el formulario, subir una foto y un documento, verlo aparecer en el listado con su estado, editarlo y comprobar que persiste tras reiniciar el proceso.
 
+### Batería de pruebas
+
+**Backend**
+- Crear un inmueble con todos los campos → se persiste y se puede volver a leer igual.
+- Crear un inmueble solo con los campos obligatorios → los opcionales quedan nulos/por defecto, sin error.
+- Editar un inmueble → los cambios persisten y `actualizado_en` se refresca.
+- Subir un documento (foto, PDF) → el contenido recuperado es idéntico byte a byte al original.
+- Subir un documento de varios MB → no falla ni se trunca.
+- Listar con filtro por estado → devuelve solo los que coinciden.
+- Crear un inmueble con un `tipo` fuera de los permitidos → error controlado (400), no un 500 genérico.
+- Pedir un inmueble con un id inexistente → 404.
+
+**Frontend**
+- El formulario de alta no deja enviar sin los campos obligatorios.
+- El listado muestra el inmueble recién creado sin recargar la página a mano.
+- Subir un documento desde la ficha lo deja visible ahí mismo al terminar.
+
 ---
 
 ## Hito 2 — Inquilinos
@@ -69,6 +101,18 @@ Ficha del inquilino con datos personales, contacto de emergencia, IBAN, document
 
 ### Criterio de aceptación
 Dar de alta un inquilino, adjuntar su DNI, verlo en el listado y abrir su ficha.
+
+### Batería de pruebas
+
+**Backend**
+- CRUD completo análogo al de inmuebles (alta con todos los campos, alta mínima, edición, 404 en id inexistente).
+- El documento de identidad se guarda y se recupera con el mismo contenido.
+- El IBAN se guarda completo en base de datos aunque en pantalla se muestre enmascarado (ej. `ES91 •••• •••• 1234`) — el enmascarado es solo de presentación.
+- Sin contratos todavía, el histórico del inquilino se devuelve vacío, no un error.
+
+**Frontend**
+- El listado permite buscar por nombre o documento.
+- La ficha muestra el IBAN enmascarado y el histórico vacío sin romper el layout.
 
 ---
 
@@ -86,6 +130,22 @@ Contrato de arrendamiento que vincula un inmueble con uno o varios inquilinos (c
 ### Criterio de aceptación
 Crear un contrato para el piso compartido con tres inquilinos, comprobar que el inmueble pasa a "alquilado", que el histórico de cada inquilino se actualiza, y que un contrato con fecha de fin próxima aparece marcado como "próximo a vencer".
 
+### Batería de pruebas
+
+**Backend**
+- Arrendador persona física → la duración por defecto sugerida es de 5 años; persona jurídica → 7 años.
+- La fianza por defecto es de 1 mensualidad (vivienda).
+- La fecha límite de depósito de fianza es exactamente fecha de firma + 30 días.
+- Contrato con fecha de fin dentro de la ventana de aviso (60 días) → estado "próximo a vencer"; fuera de la ventana → "activo"; fecha de fin ya pasada → "vencido".
+- Contrato con 3 inquilinos → los tres quedan vinculados (`contrato_inquilino`) y el histórico de cada uno se actualiza.
+- Activar un contrato pone el inmueble en "alquilado"; rescindirlo lo devuelve a "disponible".
+- Intentar crear un segundo contrato activo sobre un inmueble que ya tiene uno vigente → error controlado, no se permite el solapamiento.
+- Intentar borrar un inquilino que tiene un contrato vigente → se bloquea (`ON DELETE RESTRICT`), no se borra en silencio.
+
+**Frontend**
+- El formulario de alta rellena la duración y la fianza sugeridas según el tipo de arrendador, pero permite sobrescribirlas.
+- La ficha muestra el aviso de fianza pendiente con la fecha límite calculada, igual que en el mockup.
+
 ---
 
 ## Hito 4 — Incidencias
@@ -100,6 +160,18 @@ Submódulo de Inmuebles: alta de incidencias con categoría, prioridad, origen, 
 
 ### Criterio de aceptación
 Reportar una incidencia sobre un inmueble, cambiar su estado a "en proceso", y verla reflejada en el contador del tab.
+
+### Batería de pruebas
+
+**Backend**
+- Alta con categoría y prioridad → aparece en el listado del inmueble y en el contador del tab.
+- Los cambios de estado siguen el flujo esperado (abierta → en proceso → esperando proveedor → resuelta → cerrada) y cada cambio queda con su fecha.
+- El coste "a cargo de" propietario vs inquilino se guarda y se puede distinguir al consultar.
+- Las fotos adjuntas se guardan y recuperan igual que en Inmuebles/Inquilinos (mismo mecanismo de documentos).
+
+**Frontend**
+- El contador del tab Incidencias se actualiza al crear o cerrar una incidencia, sin recargar la página.
+- Las pills de prioridad y estado usan los mismos colores que el mockup aprobado.
 
 ---
 
@@ -117,6 +189,20 @@ Registro de facturas por inmueble (agua, luz, gas, internet, comunidad, IBI, seg
 ### Criterio de aceptación
 Definir un reparto 33/33/34% para el piso compartido, dar de alta una factura de luz, y comprobar que el recibo individual reparte el importe correctamente entre los tres inquilinos.
 
+### Batería de pruebas
+
+**Backend**
+- Guardar un reparto cuyos porcentajes para un mismo tipo de gasto NO sumen 100% → error de validación, no se guarda silenciosamente.
+- Cambiar el reparto (entra/sale un inquilino) crea una versión nueva con `vigente_desde`, sin borrar la anterior.
+- Una factura con fecha anterior al cambio de reparto se calcula con el reparto vigente en su momento, no con el actual.
+- El recibo individual de una factura, sumado entre todos los inquilinos, coincide exactamente con el importe total — caso de referencia: 78,00 € a 33/33/34% → 25,74 + 25,74 + 26,52 = 78,00 € exacto (verificar el redondeo, no solo el porcentaje).
+- Gasto en un inmueble sin reparto configurado (no compartido) → se gestiona sin error, sin necesidad de repartos.
+- La rentabilidad del inmueble (ingresos − gastos del periodo) coincide con el cálculo manual sobre datos de prueba conocidos.
+
+**Frontend**
+- La matriz de reparto vigente se ve igual que en el mockup, con el aviso de desde cuándo aplica.
+- El recibo individual se recalcula al cambiar de factura seleccionada.
+
 ---
 
 ## Hito 6 — Dashboard y centro de notificaciones
@@ -131,6 +217,18 @@ El resumen agregado (ocupación, contratos por vencer, gastos pendientes, rentab
 
 ### Criterio de aceptación
 Con los datos de prueba de los hitos anteriores (que ya incluyen un contrato próximo a vencer y una fianza pendiente), arrancar la app y ver el aviso resumen antes del dashboard.
+
+### Batería de pruebas
+
+**Backend**
+- Un contrato dentro de la ventana de aviso genera su notificación correspondiente.
+- Una fianza sin depositar con pocos días de plazo genera una notificación de severidad "urgente"; con más margen, de severidad "aviso".
+- Marcar una notificación como leída la retira del contador, pero no altera el dato real subyacente (el contrato sigue "próximo a vencer" aunque el aviso ya esté leído).
+- Los números del resumen (ocupación, pendientes, rentabilidad) se recalculan sobre los datos reales, no sobre una cifra cacheada desde otro momento.
+
+**Frontend**
+- Sin notificaciones activas, la app entra directa al dashboard sin mostrar el aviso resumen.
+- Con notificaciones activas, el aviso aparece antes de poder ver el resto del dashboard, tal como en el mockup.
 
 ---
 
@@ -147,6 +245,14 @@ No añade funcionalidad de producto: convierte lo construido en algo que una per
 
 ### Criterio de aceptación
 Instalar `Arantxator-Setup.exe` en un Windows sin herramientas de desarrollo, y que la aplicación arranque y funcione igual que en local.
+
+### Batería de pruebas
+
+- Instalar en una máquina limpia (sin Go ni Node) → arranca correctamente.
+- Instalar sin conexión a internet → funciona igual (no hay nada que descargar).
+- Desinstalar desde el Panel de control → se elimina limpiamente, sin dejar procesos colgados.
+- Copia de seguridad: cerrar la app, copiar `arantxator.db` a otra carpeta, y comprobar que todos los datos y documentos siguen íntegros al abrirlo desde ahí.
+- Repetir la checklist manual completa de los hitos 1–6 sobre el ejecutable instalado (no solo sobre el binario de desarrollo).
 
 ---
 
@@ -194,5 +300,4 @@ Los datos se guardan en `arantxator.db` junto al ejecutable (o en la ruta que in
 
 ## Preguntas abiertas de este plan
 
-1. **Framework de la SPA** (React + Vite propuesto) — confirmar antes de empezar el Hito 1.
-2. **Icono de la aplicación** para el instalador — pendiente de diseño, no bloquea nada antes del Hito 7.
+1. **Icono de la aplicación** para el instalador — pendiente de diseño, no bloquea nada antes del Hito 7.
