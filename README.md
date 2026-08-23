@@ -4,8 +4,26 @@ Sistema de gestión integral de alquileres: inmuebles, inquilinos, contratos,
 gastos con reparto porcentual e incidencias, en una aplicación visual,
 autocontenida y pensada para un usuario sin conocimientos técnicos.
 
-> **Estado:** scaffold inicial. Sin funcionalidad todavía — ver
-> [Próximos pasos](#próximos-pasos).
+> **Estado:** módulo de Inmuebles funcionando de extremo a extremo (Hito 1,
+> incluidos inmuebles compartidos por habitaciones), más el instalador de
+> Windows ya listo (Hito 7, adelantado). Ver
+> [el plan de implementación](docs/plan/plan-implementacion.md) para el
+> resto de hitos.
+
+## Instalar (usuario final)
+
+1. Descarga `Arantxator-Setup.exe` (generado con `scripts/build.ps1`, ver
+   más abajo) y haz doble clic.
+2. Sigue el asistente — no requiere conexión a internet ni permisos de
+   administrador. Deja marcada la casilla para crear el acceso directo en
+   el escritorio.
+3. Al abrirlo, la aplicación arranca en segundo plano y el navegador se
+   abre solo en `http://127.0.0.1:8080`.
+4. **Copia de seguridad:** cerrar la app y copiar `arantxator.db` (junto al
+   ejecutable) es la copia completa — datos y documentos incluidos.
+
+Detalle completo del proceso de instalación, desinstalación y solución de
+problemas: [`docs/despliegue/instalacion-despliegue.md`](docs/despliegue/instalacion-despliegue.md).
 
 ## Qué es
 
@@ -32,23 +50,27 @@ El análisis de requisitos completo y el diseño técnico/funcional están en
 ## Estructura del repositorio
 
 ```
-cmd/arantxator/         Punto de entrada del binario
+cmd/arantxator/          Punto de entrada del binario (+ icono/versión embebidos)
 internal/
-  config/                Configuración de arranque (puerto, ruta de la BD)
-  domain/                Entidades: Inmueble, Inquilino, Contrato, Gasto,
-                          RepartoGasto, Incidencia, Documento
+  config/                 Configuración de arranque (puerto, ruta de la BD)
+  domain/                 Entidades: Inmueble, Habitacion, Inquilino, Contrato,
+                          Gasto, RepartoGasto, Incidencia, Documento
   httpapi/                Rutas y handlers de la API HTTP interna
   storage/sqlite/          Conexión SQLite + migraciones embebidas
-  webui/                    GUI embebida (dist/ se sustituirá por la SPA)
-web/                     Código fuente de la futura SPA (pendiente de mockups)
-docs/design/              Análisis de requisitos y diseño técnico/funcional
-installer/                 Empaquetado en instalador de Windows (pendiente)
-scripts/                    Scripts de compilación
+  webui/                    GUI embebida (SPA compilada, servida con fallback
+                            de rutas para que React Router funcione al
+                            recargar o abrir un enlace directo)
+web/                      Código fuente de la SPA (React + Vite + TypeScript)
+docs/design/               Análisis de requisitos y diseño técnico/funcional
+docs/plan/                  Plan de implementación por hitos y su batería de pruebas
+docs/despliegue/             Instalación y despliegue (build, instalador, icono)
+installer/                    Script de Inno Setup e icono de la aplicación
+scripts/                       Scripts de compilación (SPA + binario + instalador)
 ```
 
-## Compilar y ejecutar
+## Compilar y ejecutar (desarrollo)
 
-Requiere [Go](https://go.dev/dl/) 1.23 o superior.
+Requiere [Go](https://go.dev/dl/) 1.23+ y [Node.js](https://nodejs.org/) LTS.
 
 ```bash
 go mod tidy
@@ -56,13 +78,19 @@ go run ./cmd/arantxator
 ```
 
 Arranca un servidor local y abre el navegador automáticamente en
-`http://127.0.0.1:8080`.
+`http://127.0.0.1:8080`, sirviendo la SPA ya compilada que va embebida en
+`internal/webui/dist/`. Para trabajar en la SPA con recarga en caliente,
+en otra terminal: `cd web && npm install && npm run dev` (proxy hacia la
+API real en `:8080`).
 
-Para generar el ejecutable:
+Para generar el binario final y el instalador de Windows:
 
 ```powershell
 powershell -File scripts/build.ps1
 ```
+
+Detalle completo (icono, versión, Inno Setup, verificación realizada):
+[`docs/despliegue/instalacion-despliegue.md`](docs/despliegue/instalacion-despliegue.md).
 
 ## Flujo de trabajo
 
@@ -73,7 +101,6 @@ powershell -File scripts/build.ps1
 
 ## Próximos pasos
 
-1. `go mod tidy` para fijar la dependencia de SQLite (`modernc.org/sqlite`).
-2. Mockups de la GUI (limpia, colorida, minimalista) antes de implementar
-   pantallas.
-3. Módulo de Inmuebles end-to-end (API + GUI) como primera vertical completa.
+Módulo de Inquilinos (Hito 2 del [plan de implementación](docs/plan/plan-implementacion.md)) — ficha del inquilino,
+documentación adjunta, y la asignación de ocupante a las habitaciones de
+un inmueble compartido que el Hito 1 dejó preparada.

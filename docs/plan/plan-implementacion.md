@@ -14,15 +14,24 @@ Cada hito de módulo se construye siempre **vertical, no por capas**: en el mism
 | Hito | Módulo | Rama sugerida | Entregable clave |
 |---|---|---|---|
 | 0 | Fundaciones | `feature/scaffold-inicial` | ✅ Hecho — esquema SQLite, servidor Go, GUI embebida placeholder |
-| 1 | Inmuebles + bootstrap SPA | `feature/modulo-inmuebles` | Alta/edición de inmuebles, documentos, primera pantalla real |
+| 1 | Inmuebles + bootstrap SPA | `feature/modulo-inmuebles` | ✅ Hecho — alta/edición de inmuebles (incl. compartidos por habitaciones), documentos, primera pantalla real |
+| 7 | Empaquetado e instalador | `feature/instalador` | ✅ Hecho — adelantado antes del Hito 2 (ver nota abajo). `Arantxator-Setup.exe` autoinstalable |
 | 2 | Inquilinos | `feature/modulo-inquilinos` | Alta/edición de inquilinos, documentos |
 | 3 | Contratos | `feature/modulo-contratos` | Contratos con reglas LAU, vínculo N:N con inquilinos |
 | 4 | Incidencias | `feature/modulo-incidencias` | Gestión de incidencias por inmueble |
 | 5 | Gastos y reparto | `feature/modulo-gastos` | Facturas, reparto porcentual versionado, recibos |
 | 6 | Dashboard y notificaciones | `feature/dashboard-notificaciones` | Resumen agregado + centro de notificaciones real |
-| 7 | Empaquetado e instalador | `feature/instalador` | `Arantxator-Setup.exe` autoinstalable |
 
 Hitos 1–6 entregan la v1.0-alpha funcional; el hito 7 es lo que la convierte en algo que un usuario sin conocimientos técnicos puede instalar y usar.
+
+> **Nota de secuencia (23 ago 2026):** el Hito 7 se ha adelantado a petición
+> del propietario del proyecto — completar el empaquetado con el módulo de
+> Inmuebles ya construido, en vez de esperar a que estén cerrados los hitos
+> 2–6. La tabla refleja el orden real de ejecución; el resto de hitos siguen
+> pendientes en su orden original. La checklist manual del Hito 7 ("repetir
+> la de los hitos anteriores") por ahora solo cubre el Hito 1 — se
+> completará de forma acumulativa según avancen los hitos 2–6, tal como
+> exige la batería general de este plan.
 
 ## Stack de la SPA (confirmado)
 
@@ -249,7 +258,11 @@ Con los datos de prueba de los hitos anteriores (que ya incluyen un contrato pr�
 
 ---
 
-## Hito 7 — Empaquetado e instalador
+## Hito 7 — Empaquetado e instalador *(hecho, adelantado)*
+
+Documentación completa del proceso, con el detalle de cada pieza y la
+verificación realizada:
+[`docs/despliegue/instalacion-despliegue.md`](../despliegue/instalacion-despliegue.md).
 
 ### Qué hace este hito
 No añade funcionalidad de producto: convierte lo construido en algo que una persona sin conocimientos técnicos puede instalar. Ver el detalle completo de arranque en la siguiente sección.
@@ -257,19 +270,20 @@ No añade funcionalidad de producto: convierte lo construido en algo que una per
 ### Trabajo técnico
 - Script de build único (`scripts/build.ps1` ampliado) que compila la SPA, la copia a `internal/webui/dist/`, y genera el ejecutable Go autocontenido.
 - Script de Inno Setup en `installer/` que empaqueta el ejecutable, crea el acceso directo en escritorio/menú inicio, y no requiere conexión a internet.
-- Icono de aplicación (a definir — se puede derivar del isotipo usado en los mockups).
-- Prueba de instalación en una máquina Windows limpia (sin Go/Node instalados).
+- Icono de aplicación: el isotipo de casa del rail de navegación, generado en `installer/icon.ico` con `scripts/generate-icon.ps1`, e incrustado en el propio `.exe` (icono + versión) con `scripts/generate-versioninfo.ps1` (`goversioninfo`), versionado como `cmd/arantxator/resource_windows_*.syso` para que un `go build` normal ya lo incluya sin herramientas extra.
+- Fallback de rutas en `internal/webui/embed.go` (`webui.Handler()`): sin él, abrir o recargar una ruta interna de la SPA (ej. `/inmuebles/5`) daba 404 en el instalado, igual que ya daba en desarrollo — necesario para que el instalador sea usable de verdad, no solo para que compile.
+- Prueba de instalación en una máquina Windows limpia (sin Go/Node instalados) — **pendiente**, ver más abajo.
 
 ### Criterio de aceptación
 Instalar `Arantxator-Setup.exe` en un Windows sin herramientas de desarrollo, y que la aplicación arranque y funcione igual que en local.
 
 ### Batería de pruebas
 
-- Instalar en una máquina limpia (sin Go ni Node) → arranca correctamente.
-- Instalar sin conexión a internet → funciona igual (no hay nada que descargar).
-- Desinstalar desde el Panel de control → se elimina limpiamente, sin dejar procesos colgados.
-- Copia de seguridad: cerrar la app, copiar `arantxator.db` a otra carpeta, y comprobar que todos los datos y documentos siguen íntegros al abrirlo desde ahí.
-- Repetir la checklist manual completa de los hitos 1–6 sobre el ejecutable instalado (no solo sobre el binario de desarrollo).
+- Instalar en una máquina limpia (sin Go ni Node) → arranca correctamente. **Pendiente**: verificado en esta misma máquina de desarrollo (instalación real de usuario, sin privilegios de administrador, sin usar `go run`/`npm run dev`), pero no en una máquina sin ningún SDK instalado — no hay una VM/equipo limpio disponible en este entorno para esa prueba concreta.
+- Instalar sin conexión a internet → funciona igual (no hay nada que descargar). ✅ Verificado: Inno Setup empaqueta el `.exe` dentro del propio instalador, sin llamadas de red.
+- Desinstalar desde el Panel de control → se elimina limpiamente, sin dejar procesos colgados. ✅ Verificado (instalación/desinstalación silenciosa con log). Nota: deja `arantxator.db` a propósito (ver documentación de despliegue) — es la protección de datos, no un residuo de limpieza incompleta.
+- Copia de seguridad: cerrar la app, copiar `arantxator.db` a otra carpeta, y comprobar que todos los datos y documentos siguen íntegros al abrirlo desde ahí. ✅ Verificado ya en el Hito 1 (reinicio del proceso con los mismos datos); el mecanismo es idéntico para la app instalada.
+- Repetir la checklist manual completa de los hitos 1–6 sobre el ejecutable instalado (no solo sobre el binario de desarrollo). Por ahora solo hay Hito 1 que repetir — ✅ verificado (alta de inmueble, documento, edición, todo funcionando igual que en `go run`).
 
 ---
 
@@ -277,7 +291,7 @@ Instalar `Arantxator-Setup.exe` en un Windows sin herramientas de desarrollo, y 
 
 ### Durante el desarrollo (hitos 1–6): cómo probar cada módulo
 
-Requisitos: Go 1.23+, Node.js LTS (a partir del Hito 1), Git y GitHub CLI — todos ya instalados en esta máquina.
+Requisitos: Go 1.23+, Node.js LTS (a partir del Hito 1), Git y GitHub CLI — todos ya instalados en esta máquina. Para generar también el instalador (Hito 7), además Inno Setup 6 (`winget install JRSoftware.InnoSetup`) — no hace falta para el día a día de desarrollo, solo para `scripts/build.ps1` cuando quieras `dist/Arantxator-Setup.exe`.
 
 ```bash
 git checkout development
@@ -304,7 +318,9 @@ go build -o bin/arantxator.exe ./cmd/arantxator
 
 Los datos se guardan en `arantxator.db` junto al ejecutable (o en la ruta que indique la variable `ARANTXATOR_DB_PATH`); para empezar de cero basta con borrar ese fichero.
 
-### Instalación final (a partir del Hito 7): cómo lo instala el usuario
+### Instalación final: cómo lo instala el usuario
+
+Detalle completo (con la verificación realizada): [`docs/despliegue/instalacion-despliegue.md`](../despliegue/instalacion-despliegue.md).
 
 1. Descargar `Arantxator-Setup.exe`.
 2. Doble clic y seguir el asistente — no requiere conexión a internet, porque no hay nada que descargar: todo va embebido en el instalador.
@@ -317,5 +333,5 @@ Los datos se guardan en `arantxator.db` junto al ejecutable (o en la ruta que in
 
 ## Preguntas abiertas de este plan
 
-1. **Icono de la aplicación** para el instalador — pendiente de diseño, no bloquea nada antes del Hito 7.
+1. **Prueba en máquina Windows limpia** del instalador (sin Go/Node/Git) — pendiente, no hay VM/equipo disponible en este entorno de desarrollo para esa prueba concreta. Lo verificado hasta ahora (instalación de usuario real sin privilegios de administrador) da confianza razonable, pero no sustituye esa prueba.
 2. **Vínculo Contrato ↔ Habitación** — un inmueble compartido tiene contratos por habitación (cada inquilino con el suyo) o un contrato conjunto de piso completo con habitaciones asignadas aparte. El modelo actual de `Contrato` solo referencia `inmueble_id`, no `habitacion_id`. Pendiente de decidir al implementar el Hito 3; no bloquea el Hito 1 ni el Hito 2, donde la habitación es solo control físico y de ocupación, no contractual.
