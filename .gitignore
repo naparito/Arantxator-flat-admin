@@ -1,0 +1,21 @@
+# Binarios compilados
+/bin/
+*.exe
+*.test
+*.out
+
+# Base de datos local y artefactos en tiempo de ejecución
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Frontend (cuando exista web/)
+web/node_modules/
+web/dist/
+
+# IDE / SO
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
