@@ -145,16 +145,56 @@ Dar de alta un inquilino, adjuntar su DNI, verlo en el listado y abrir su ficha.
 ## Hito 3 — Contratos
 
 ### Qué hace este módulo
-Contrato de arrendamiento que vincula un inmueble con uno o varios inquilinos (co-arrendatarios). Aplica por defecto las reglas de la LAU para la Comunidad de Madrid ya fijadas en el análisis: duración mínima según el arrendador sea persona física o jurídica, fianza de una mensualidad con el plazo de 30 días de depósito en la Agencia de Vivienda Social, e índice de actualización IRAV. El estado del contrato (activo / próximo a vencer / vencido) se deriva de las fechas, no se marca a mano; y dar de alta un contrato activo pone el inmueble en estado "alquilado" automáticamente.
+Contrato de arrendamiento que vincula un inmueble (o, en un inmueble
+compartido, una habitación concreta — ver más abajo) con uno o varios
+inquilinos (co-arrendatarios). Aplica por defecto las reglas de la LAU para
+la Comunidad de Madrid ya fijadas en el análisis: duración mínima según el
+arrendador sea persona física o jurídica, fianza de una mensualidad con el
+plazo de 30 días de depósito en la Agencia de Vivienda Social, e índice de
+actualización IRAV. El estado del contrato (activo / próximo a vencer /
+vencido) se deriva de las fechas, no se marca a mano.
+
+> **Decisión (23 ago 2026, a petición del propietario del proyecto):** en un
+> inmueble compartido, **cada habitación tiene su propio contrato
+> independiente** — no un contrato conjunto para todo el piso. Esto cierra
+> la pregunta que el plan dejaba abierta hasta ahora ("Contrato ↔
+> Habitación"). Ver el detalle completo en
+> [`docs/design/diseno-tecnico-funcional.md` §4.2 y §6](../design/diseno-tecnico-funcional.md#42-submódulo-de-habitaciones-inmuebles-compartidos).
+>
+> Consecuencias concretas para este hito:
+> - `Contrato` gana una columna `habitacion_id` (nullable): **NULL** para un
+>   inmueble no compartido (el contrato es del inmueble completo, como
+>   hasta ahora); **obligatoria** cuando el inmueble es compartido (el
+>   contrato es de esa habitación).
+> - Un inmueble compartido puede tener **varios contratos activos
+>   simultáneos** (uno por habitación ocupada) — la regla de "no dos
+>   contratos activos a la vez" pasa a comprobarse por habitación, no por
+>   inmueble, cuando el inmueble es compartido.
+> - `Inmueble.Estado` sigue siendo "alquilado"/"disponible" automático solo
+>   para inmuebles **no compartidos** (activar un contrato → "alquilado";
+>   rescindirlo → "disponible", tal como ya estaba previsto). Para un
+>   inmueble compartido este campo binario no representa bien la realidad
+>   (puede tener 1 de 3 habitaciones ocupadas), así que **no se toca
+>   automáticamente**: se queda en lo que el usuario fije a mano
+>   (`disponible` por defecto, o `en_reforma`/`fuera_de_servicio` si
+>   aplica).
+> - En su lugar, para inmuebles compartidos el listado y la ficha de
+>   Inmuebles muestran un **% de ocupación**, calculado como habitaciones
+>   con un contrato activo ÷ total de habitaciones del inmueble (ej. "2/3
+>   habitaciones ocupadas · 67%"). Es un dato derivado en el momento de
+>   leer (igual que el estado del propio contrato), no un campo guardado.
 
 ### Trabajo técnico
-- `internal/storage/sqlite/contratos.go`, usando la tabla `contrato_inquilino` ya creada para la relación N:N.
+- `internal/storage/sqlite/contratos.go`, usando la tabla `contrato_inquilino` ya creada para la relación N:N (que se mantiene: un contrato — sea de un inmueble completo o de una sola habitación — puede tener varios inquilinos co-arrendatarios).
+- Migración nueva que añade `habitacion_id INTEGER REFERENCES habitaciones(id) ON DELETE RESTRICT` a `contratos`, más el `CHECK`/validación a nivel de aplicación de que sea NULL sii el inmueble no es compartido.
 - Lógica de estado derivado: función que, dada la fecha actual y las fechas del contrato, calcula activo/próximo a vencer (configurable, por defecto 60 días)/vencido — se recalcula al leer, sin necesidad de tareas programadas.
+- Lógica de no solapamiento: por inmueble si no es compartido; por habitación (dentro de ese inmueble) si lo es.
+- Cálculo del % de ocupación por inmueble compartido (habitaciones con contrato activo ÷ total), expuesto en la respuesta de `GET /api/inmuebles`/`GET /api/inmuebles/{id}` o en un endpoint propio — a decidir al implementar, pero debe quedar visible en listado y ficha sin que el frontend tenga que recalcularlo a mano cruzando contratos y habitaciones por su cuenta.
 - API: `GET/POST /api/contratos`, `GET/PUT /api/contratos/{id}`.
-- GUI: **Contratos — Listado** y **Contratos — Ficha**, con el aviso de fianza tal como aparece en el mockup.
+- GUI: **Contratos — Listado** y **Contratos — Ficha**, con el aviso de fianza tal como aparece en el mockup. El formulario de alta de contrato, para un inmueble compartido, exige elegir la habitación (no permite un contrato "de piso completo" en ese caso).
 
 ### Criterio de aceptación
-Crear un contrato para el piso compartido con tres inquilinos, comprobar que el inmueble pasa a "alquilado", que el histórico de cada inquilino se actualiza, y que un contrato con fecha de fin próxima aparece marcado como "próximo a vencer".
+Crear un contrato para una habitación del piso compartido (con uno o varios inquilinos como co-arrendatarios de esa habitación) y comprobar que el % de ocupación del inmueble sube en consecuencia sin que el campo `estado` del inmueble cambie solo. Crear un segundo contrato para otra habitación del mismo piso y comprobar que ambos conviven activos a la vez. Para un inmueble no compartido, comprobar que sigue pasando a "alquilado" automáticamente, como ya hacía. Comprobar que el histórico de cada inquilino se actualiza, y que un contrato con fecha de fin próxima aparece marcado como "próximo a vencer".
 
 ### Batería de pruebas
 
@@ -164,13 +204,19 @@ Crear un contrato para el piso compartido con tres inquilinos, comprobar que el 
 - La fecha límite de depósito de fianza es exactamente fecha de firma + 30 días.
 - Contrato con fecha de fin dentro de la ventana de aviso (60 días) → estado "próximo a vencer"; fuera de la ventana → "activo"; fecha de fin ya pasada → "vencido".
 - Contrato con 3 inquilinos → los tres quedan vinculados (`contrato_inquilino`) y el histórico de cada uno se actualiza.
-- Activar un contrato pone el inmueble en "alquilado"; rescindirlo lo devuelve a "disponible".
-- Intentar crear un segundo contrato activo sobre un inmueble que ya tiene uno vigente → error controlado, no se permite el solapamiento.
+- Inmueble no compartido: activar un contrato lo pone en "alquilado"; rescindirlo lo devuelve a "disponible" — sin cambios respecto al comportamiento ya previsto.
+- Inmueble compartido: crear un contrato sin `habitacionId` → error controlado (400), no se permite un contrato "de piso completo" cuando es compartido.
+- Inmueble compartido: crear un contrato activo para una habitación no cambia `Inmueble.Estado`.
+- Inmueble compartido con 3 habitaciones, 2 con contrato activo → el % de ocupación calculado es exactamente 67% (2/3), no un redondeo distinto.
+- Inmueble compartido: intentar crear un segundo contrato activo sobre una habitación que ya tiene uno vigente → error controlado, no se permite el solapamiento; crear uno para otra habitación libre del mismo inmueble → sí se permite, y ambos quedan activos a la vez.
+- Inmueble no compartido: intentar crear un segundo contrato activo sobre un inmueble que ya tiene uno vigente → error controlado (comportamiento ya previsto, sin cambios).
 - Intentar borrar un inquilino que tiene un contrato vigente → se bloquea (`ON DELETE RESTRICT`), no se borra en silencio.
 
 **Frontend**
 - El formulario de alta rellena la duración y la fianza sugeridas según el tipo de arrendador, pero permite sobrescribirlas.
+- El formulario de alta, sobre un inmueble compartido, obliga a elegir la habitación antes de dejar guardar.
 - La ficha muestra el aviso de fianza pendiente con la fecha límite calculada, igual que en el mockup.
+- El listado y la ficha de un inmueble compartido muestran el % de ocupación (habitaciones con contrato activo / total), y se actualiza sin recargar la página al dar de alta o rescindir un contrato de una de sus habitaciones.
 
 ---
 
@@ -385,4 +431,11 @@ Detalle completo (con la verificación realizada): [`docs/despliegue/instalacion
 ## Preguntas abiertas de este plan
 
 1. **Prueba en máquina Windows limpia** del instalador (sin Go/Node/Git) — pendiente, no hay VM/equipo disponible en este entorno de desarrollo para esa prueba concreta. Lo verificado hasta ahora (instalación de usuario real sin privilegios de administrador) da confianza razonable, pero no sustituye esa prueba.
-2. **Vínculo Contrato ↔ Habitación** — un inmueble compartido tiene contratos por habitación (cada inquilino con el suyo) o un contrato conjunto de piso completo con habitaciones asignadas aparte. El modelo actual de `Contrato` solo referencia `inmueble_id`, no `habitacion_id`. Pendiente de decidir al implementar el Hito 3; no bloquea el Hito 1 ni el Hito 2, donde la habitación es solo control físico y de ocupación, no contractual.
+
+Resueltas:
+
+- ~~**Vínculo Contrato ↔ Habitación**~~ — decidido el 23 ago 2026: en un
+  inmueble compartido, cada habitación tiene su propio contrato
+  independiente (no uno conjunto de piso completo). Detalle completo y
+  consecuencias técnicas en la [sección del Hito 3](#hito-3--contratos) y
+  en [`docs/design/diseno-tecnico-funcional.md` §4.2 y §6](../design/diseno-tecnico-funcional.md#42-submódulo-de-habitaciones-inmuebles-compartidos).

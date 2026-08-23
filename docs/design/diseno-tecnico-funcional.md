@@ -105,12 +105,29 @@ una) en vez de una única foto de "3 inquilinos" a nivel de piso.
 | Ocupante | Inquilino que ocupa la habitación actualmente (opcional; se asigna desde la ficha del inquilino una vez existe el módulo de Inquilinos — Hito 2) |
 
 La relación habitación–inquilino es 1:1 en un momento dado (una habitación
-tiene como mucho un ocupante), pero es independiente del `Contrato`: un
-contrato de piso compartido puede seguir vinculando varios inquilinos al
-mismo `Inmueble` (§6); la habitación es la unidad de **control físico**
-del espacio, no la unidad contractual. Qué contrato ocupa qué habitación
-concretamente es una decisión pendiente de cerrar en el Hito 3 (ver
-`docs/plan/plan-implementacion.md`).
+tiene como mucho un ocupante), pero es independiente del `Contrato`: es la
+unidad de **control físico** del espacio (quién vive ahí hoy, a efectos de
+gestión), no necesariamente la unidad contractual en sí misma.
+
+> **Decisión (23 ago 2026):** en un inmueble compartido, **cada habitación
+> tiene su propio contrato independiente** — no un contrato conjunto que
+> cubra el piso completo. `Contrato` referencia `habitacion_id` (además de
+> `inmueble_id`) cuando el inmueble es compartido; queda `NULL` cuando no lo
+> es, y el contrato sigue siendo del inmueble completo como hasta ahora. Un
+> mismo inmueble compartido puede tener así varios contratos activos a la
+> vez, uno por habitación ocupada — ver §6 y el
+> [Hito 3 del plan de implementación](../plan/plan-implementacion.md#hito-3--contratos)
+> para el detalle técnico completo (validaciones, no solapamiento por
+> habitación, etc.).
+>
+> Consecuencia directa para `Inmueble.estado`: en un inmueble compartido no
+> tiene sentido un único valor "alquilado"/"disponible" cuando puede haber,
+> por ejemplo, 2 de 3 habitaciones ocupadas. Por eso ese campo **no se
+> actualiza automáticamente** para inmuebles compartidos (solo para los no
+> compartidos, donde sigue funcionando como ya estaba previsto). En su
+> lugar, el listado y la ficha de Inmuebles muestran un **% de ocupación**
+> calculado como habitaciones con contrato activo ÷ total de habitaciones
+> del inmueble.
 
 ### 4.3 Submódulo de incidencias
 
@@ -139,8 +156,12 @@ estado y coste asociado.
 | Documentación | Copia de DNI/NIE, contrato laboral, aval |
 | Histórico | Inmuebles ocupados en el tiempo, incidencias reportadas, historial de pagos |
 
-Un contrato puede tener varios inquilinos (piso compartido con contrato
-conjunto). El modelo trata Contrato–Inquilino como relación N:N.
+Un contrato puede tener varios inquilinos (co-arrendatarios): el modelo
+trata Contrato–Inquilino como relación N:N. Esto aplica tanto a un
+inmueble no compartido (varios co-arrendatarios del piso completo) como a
+una habitación de un inmueble compartido (por ejemplo, una pareja
+compartiendo esa habitación con un único contrato) — ver §4.2 y §6 sobre
+cómo se vincula el contrato a la habitación en ese segundo caso.
 
 ## 6. Módulo: Contratos
 
@@ -168,6 +189,7 @@ valores por defecto que el usuario puede anular caso a caso.
 
 | Campo | Detalle |
 |---|---|
+| Inmueble / habitación | El inmueble completo (no compartido), o una habitación concreta (inmueble compartido — ver §4.2) |
 | Datos del contrato | Fecha de firma, inicio, duración pactada, fin, tipo de persona arrendadora |
 | Renovación | Alerta configurable X días antes del vencimiento; registro de prórroga tácita |
 | Renta | Importe mensual, día de pago, forma de pago, índice de referencia, fecha de próxima revisión |
@@ -176,6 +198,15 @@ valores por defecto que el usuario puede anular caso a caso.
 | Cláusulas | Mascotas, subarriendo, uso permitido, condiciones particulares |
 | Documento | PDF del contrato firmado, con versiones para anexos/prórrogas |
 | Estado | Activo / próximo a vencer / vencido / rescindido anticipadamente (con motivo) |
+
+En un inmueble **no compartido**, un contrato activo pone el inmueble en
+estado "alquilado" automáticamente (y "disponible" al rescindirlo), como ya
+estaba previsto. En un inmueble **compartido**, cada habitación tiene su
+propio contrato (§4.2): puede haber varios contratos activos a la vez sobre
+el mismo inmueble, y el "no solapamiento" de contratos activos se comprueba
+por habitación, no por inmueble. El estado del inmueble no se toca
+automáticamente en ese caso — en su lugar, listado y ficha muestran el % de
+ocupación (habitaciones con contrato activo ÷ total).
 
 ## 7. Módulo: Gastos y reparto
 
@@ -234,17 +265,22 @@ polimórfica (por `entidad_tipo` + `entidad_id`) que guarda el contenido
 como BLOB, referenciable desde Inmueble, Inquilino, Contrato, Gasto o
 Incidencia. `Habitacion` solo tiene sentido cuando `Inmueble.compartido`
 es verdadero (§4.2); su vínculo con `Inquilino` es opcional y de
-presentación (quién ocupa hoy cada habitación), no la relación
-contractual, que sigue siendo `Contrato` ↔ `Inquilino`.
+presentación (quién ocupa hoy cada habitación) — la relación contractual
+sigue siendo `Contrato` ↔ `Inquilino`, pero desde el 23 ago 2026 `Contrato`
+también referencia opcionalmente `Habitacion` (obligatorio cuando el
+inmueble es compartido, nulo cuando no lo es — ver §4.2 y §6): en un
+inmueble compartido cada habitación tiene su propio contrato, no uno
+conjunto para todo el piso.
 
 ```mermaid
 erDiagram
-    INMUEBLE ||--o{ CONTRATO : tiene
+    INMUEBLE ||--o{ CONTRATO : "tiene (si no compartido)"
     INMUEBLE ||--o{ INCIDENCIA : registra
     INMUEBLE ||--o{ GASTO : genera
     INMUEBLE ||--o{ REPARTO_GASTO : define
     INMUEBLE ||--o{ HABITACION : "divide en (si compartido)"
     HABITACION }o--o| INQUILINO : "ocupada por"
+    HABITACION ||--o{ CONTRATO : "tiene (si compartido)"
     CONTRATO }o--o{ INQUILINO : firman
     GASTO ||--o{ REPARTO_GASTO : "se reparte en"
     REPARTO_GASTO }o--|| INQUILINO : "asigna a (%)"
