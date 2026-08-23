@@ -165,6 +165,17 @@ export function InmuebleForm() {
                   </select>
                 </div>
               )}
+              <div className="field-check span-2">
+                <input
+                  id="compartido"
+                  type="checkbox"
+                  checked={datos.compartido}
+                  onChange={(e) => actualizarCampo('compartido', e.target.checked)}
+                />
+                <label htmlFor="compartido">
+                  Compartido — se alquila por habitaciones en lugar de a un único arrendatario
+                </label>
+              </div>
             </div>
           </div>
 

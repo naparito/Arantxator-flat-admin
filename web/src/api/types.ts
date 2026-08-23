@@ -35,12 +35,28 @@ export interface Inmueble {
   certificadoEnergeticoLetra: string
   certificadoEnergeticoCaducidad: string | null
   estado: EstadoInmueble
+  compartido: boolean
   suministros: Suministros
   creadoEn: string
   actualizadoEn: string
 }
 
 export type InmuebleInput = Omit<Inmueble, 'id' | 'creadoEn' | 'actualizadoEn'>
+
+export interface Habitacion {
+  id: number
+  inmuebleId: number
+  nombre: string
+  m2: number
+  tieneBano: boolean
+  amueblada: boolean
+  notas: string
+  inquilinoId: number | null
+  creadoEn: string
+  actualizadoEn: string
+}
+
+export type HabitacionInput = Pick<Habitacion, 'nombre' | 'm2' | 'tieneBano' | 'amueblada' | 'notas'>
 
 export interface Documento {
   id: number
@@ -80,5 +96,6 @@ export const inmuebleVacio = (): InmuebleInput => ({
   certificadoEnergeticoLetra: '',
   certificadoEnergeticoCaducidad: null,
   estado: 'disponible',
+  compartido: false,
   suministros: suministrosVacios(),
 })

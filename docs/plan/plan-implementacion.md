@@ -61,14 +61,17 @@ Ya en `development`: estructura del proyecto Go (`cmd/`, `internal/`), esquema S
 ### Qué hace este módulo
 Ficha configurable por inmueble con identificación, características, certificado energético, titularidad, estado operativo, suministros y documentación (fotos, escritura, cédula, seguro) guardada como BLOB. Listado filtrable por estado (disponible/alquilado/en reforma/fuera de servicio). Este es también el hito en el que nace la SPA real, sustituyendo la página placeholder.
 
+Un inmueble se puede marcar como **compartido** (piso por habitaciones en lugar de arrendamiento único): en ese caso se da de alta cada habitación por separado, con sus propias características, para llevar control individualizado del espacio (ver `docs/design/diseno-tecnico-funcional.md` §4.2). La asociación de cada habitación con su inquilino ocupante se activa en el Hito 2, cuando exista el módulo de Inquilinos del que elegir; este hito deja el hueco (columna `inquilino_id` nula) y el CRUD de habitaciones.
+
 ### Trabajo técnico
 - Bootstrap de `web/` con Vite + React + TypeScript; `npm run build` con salida en `internal/webui/dist/`; proxy de desarrollo hacia `:8080` para trabajar con recarga en caliente contra la API real.
 - `internal/storage/sqlite/inmuebles.go`: repositorio (crear, listar, obtener, actualizar, archivar) y `documentos.go` genérico (usado también por los módulos siguientes) para subir/descargar BLOBs por `entidad_tipo` + `entidad_id`.
-- API: `GET/POST /api/inmuebles`, `GET/PUT /api/inmuebles/{id}`, `POST /api/inmuebles/{id}/documentos`, `GET /api/documentos/{id}`.
-- GUI: pantallas **Inmuebles — Listado** e **Inmuebles — Ficha** (tabs Datos generales, Documentación, Suministros; el tab Incidencias se activa en el Hito 4), replicando el diseño ya aprobado.
+- `internal/storage/sqlite/habitaciones.go`: repositorio (crear, listar por inmueble, obtener, actualizar, borrar, asignar/quitar ocupante) para el submódulo de habitaciones de inmuebles compartidos.
+- API: `GET/POST /api/inmuebles`, `GET/PUT /api/inmuebles/{id}`, `POST /api/inmuebles/{id}/documentos`, `GET /api/documentos/{id}`, `GET/POST /api/inmuebles/{id}/habitaciones`, `GET/PUT/DELETE /api/habitaciones/{id}`.
+- GUI: pantallas **Inmuebles — Listado** e **Inmuebles — Ficha** (tabs Datos generales, Documentación, Suministros, Habitaciones —visible solo si el inmueble es compartido—; el tab Incidencias se activa en el Hito 4), replicando el diseño ya aprobado. El formulario de alta/edición incluye el check «Compartido».
 
 ### Criterio de aceptación
-Arrancar la app, dar de alta un inmueble desde el formulario, subir una foto y un documento, verlo aparecer en el listado con su estado, editarlo y comprobar que persiste tras reiniciar el proceso.
+Arrancar la app, dar de alta un inmueble desde el formulario, subir una foto y un documento, verlo aparecer en el listado con su estado, editarlo y comprobar que persiste tras reiniciar el proceso. Marcar un inmueble como compartido, darlo de alta con 3 habitaciones con sus propias características, y comprobar que el tab Habitaciones no aparece en un inmueble no compartido.
 
 ### Batería de pruebas
 
@@ -81,11 +84,17 @@ Arrancar la app, dar de alta un inmueble desde el formulario, subir una foto y u
 - Listar con filtro por estado → devuelve solo los que coinciden.
 - Crear un inmueble con un `tipo` fuera de los permitidos → error controlado (400), no un 500 genérico.
 - Pedir un inmueble con un id inexistente → 404.
+- Marcar un inmueble como `compartido` → se persiste el flag.
+- Crear varias habitaciones para un inmueble compartido → cada una se lista con sus propias características.
+- Borrar un inmueble con habitaciones → las habitaciones se borran en cascada (no quedan huérfanas).
+- Pedir habitaciones de un inmueble inexistente → 404.
 
 **Frontend**
 - El formulario de alta no deja enviar sin los campos obligatorios.
 - El listado muestra el inmueble recién creado sin recargar la página a mano.
 - Subir un documento desde la ficha lo deja visible ahí mismo al terminar.
+- El tab Habitaciones solo aparece cuando el inmueble está marcado como compartido.
+- Dar de alta una habitación desde la ficha la deja visible ahí mismo, con su ocupante como «Sin asignar» (la asignación real llega en el Hito 2).
 
 ---
 
@@ -94,13 +103,16 @@ Arrancar la app, dar de alta un inmueble desde el formulario, subir una foto y u
 ### Qué hace este módulo
 Ficha del inquilino con datos personales, contacto de emergencia, IBAN, documentación (DNI, nómina, aval) y su histórico de inmuebles ocupados (este último se rellena de verdad en el Hito 3, cuando existan contratos; hasta entonces se muestra vacío).
 
+Con este hito ya existen inquilinos que elegir, así que se cierra el hueco que dejó el Hito 1 en el submódulo de habitaciones: desde la ficha de una habitación (inmueble compartido) se puede asignar/quitar un inquilino como ocupante actual. Es una asignación de presentación (quién vive hoy en cada habitación), independiente de a qué contrato esté vinculado ese inquilino.
+
 ### Trabajo técnico
 - `internal/storage/sqlite/inquilinos.go`.
 - API: `GET/POST /api/inquilinos`, `GET/PUT /api/inquilinos/{id}` (+ documentos, reutilizando el endpoint genérico del Hito 1).
-- GUI: **Inquilinos — Listado** e **Inquilinos — Ficha**.
+- API: `PUT /api/habitaciones/{id}/ocupante` (asigna o quita, con `inquilinoId` nulo, el inquilino ocupante — repositorio ya creado en el Hito 1).
+- GUI: **Inquilinos — Listado** e **Inquilinos — Ficha**; selector de ocupante en la ficha de cada habitación (tab Habitaciones de Inmuebles).
 
 ### Criterio de aceptación
-Dar de alta un inquilino, adjuntar su DNI, verlo en el listado y abrir su ficha.
+Dar de alta un inquilino, adjuntar su DNI, verlo en el listado y abrir su ficha. En un inmueble compartido, asignar ese inquilino como ocupante de una habitación y comprobar que aparece en su ficha de habitación.
 
 ### Batería de pruebas
 
@@ -109,10 +121,15 @@ Dar de alta un inquilino, adjuntar su DNI, verlo en el listado y abrir su ficha.
 - El documento de identidad se guarda y se recupera con el mismo contenido.
 - El IBAN se guarda completo en base de datos aunque en pantalla se muestre enmascarado (ej. `ES91 •••• •••• 1234`) — el enmascarado es solo de presentación.
 - Sin contratos todavía, el histórico del inquilino se devuelve vacío, no un error.
+- Asignar un inquilino como ocupante de una habitación → se persiste y se puede volver a leer.
+- Asignar un inquilino ya ocupante de otra habitación → error controlado (una persona no ocupa dos habitaciones a la vez) o se libera la anterior automáticamente (a decidir al implementar).
+- Quitar el ocupante de una habitación (`inquilinoId` nulo) → la habitación queda libre sin borrar su histórico.
+- Borrar un inquilino que ocupa una habitación → la habitación queda sin ocupante, no se bloquea el borrado (a diferencia de un contrato vigente, ver Hito 3).
 
 **Frontend**
 - El listado permite buscar por nombre o documento.
 - La ficha muestra el IBAN enmascarado y el histórico vacío sin romper el layout.
+- El selector de ocupante de una habitación solo lista inquilinos que no ocupan ya otra habitación del mismo inmueble.
 
 ---
 
@@ -301,3 +318,4 @@ Los datos se guardan en `arantxator.db` junto al ejecutable (o en la ruta que in
 ## Preguntas abiertas de este plan
 
 1. **Icono de la aplicación** para el instalador — pendiente de diseño, no bloquea nada antes del Hito 7.
+2. **Vínculo Contrato ↔ Habitación** — un inmueble compartido tiene contratos por habitación (cada inquilino con el suyo) o un contrato conjunto de piso completo con habitaciones asignadas aparte. El modelo actual de `Contrato` solo referencia `inmueble_id`, no `habitacion_id`. Pendiente de decidir al implementar el Hito 3; no bloquea el Hito 1 ni el Hito 2, donde la habitación es solo control físico y de ocupación, no contractual.

@@ -84,12 +84,35 @@ Experiencia de instalación:
 | Certificación energética | Letra y fecha de caducidad |
 | Titularidad | Propietario(s); si hay varios, % de titularidad de cada uno |
 | Estado operativo | Disponible / alquilado / en reforma / fuera de servicio |
+| Compartido | Marca si el inmueble se alquila por habitaciones a varios inquilinos independientes en lugar de a un único arrendatario (o grupo con contrato conjunto). Activa el submódulo de habitaciones (§4.2) |
 | Reparto de gastos | Configuración de % por inquilino (detalle en §7) |
 | Suministros | Compañía, nº de contrato/CUPS y titular de luz, agua, gas e internet |
 | Documentación | Escritura, cédula de habitabilidad, certificado energético, póliza de seguro del hogar, ITE/IEE si aplica |
 | Fotos | Galería del inmueble |
 
-### 4.2 Submódulo de incidencias
+### 4.2 Submódulo de habitaciones (inmuebles compartidos)
+
+Cuando un inmueble se marca como **compartido**, se da de alta cada
+habitación por separado, con su propia ficha, en lugar de tratar el piso
+como una unidad indivisible. Esto permite llevar control individualizado
+(qué habitación necesita mantenimiento, cuál está libre, quién ocupa cada
+una) en vez de una única foto de "3 inquilinos" a nivel de piso.
+
+| Campo | Detalle |
+|---|---|
+| Identificador | Nombre o número de la habitación (ej. "Habitación 1", "Doble exterior") |
+| Características | m², baño propio (sí/no), amueblada, ventana exterior, notas libres |
+| Ocupante | Inquilino que ocupa la habitación actualmente (opcional; se asigna desde la ficha del inquilino una vez existe el módulo de Inquilinos — Hito 2) |
+
+La relación habitación–inquilino es 1:1 en un momento dado (una habitación
+tiene como mucho un ocupante), pero es independiente del `Contrato`: un
+contrato de piso compartido puede seguir vinculando varios inquilinos al
+mismo `Inmueble` (§6); la habitación es la unidad de **control físico**
+del espacio, no la unidad contractual. Qué contrato ocupa qué habitación
+concretamente es una decisión pendiente de cerrar en el Hito 3 (ver
+`docs/plan/plan-implementacion.md`).
+
+### 4.3 Submódulo de incidencias
 
 Cada inmueble mantiene su propio histórico de incidencias, con flujo de
 estado y coste asociado.
@@ -209,7 +232,10 @@ neta. Exportable a Excel/PDF, útil de cara a la declaración de la renta.
 varios repartos vigentes en distintos periodos. `Documento` es una tabla
 polimórfica (por `entidad_tipo` + `entidad_id`) que guarda el contenido
 como BLOB, referenciable desde Inmueble, Inquilino, Contrato, Gasto o
-Incidencia.
+Incidencia. `Habitacion` solo tiene sentido cuando `Inmueble.compartido`
+es verdadero (§4.2); su vínculo con `Inquilino` es opcional y de
+presentación (quién ocupa hoy cada habitación), no la relación
+contractual, que sigue siendo `Contrato` ↔ `Inquilino`.
 
 ```mermaid
 erDiagram
@@ -217,6 +243,8 @@ erDiagram
     INMUEBLE ||--o{ INCIDENCIA : registra
     INMUEBLE ||--o{ GASTO : genera
     INMUEBLE ||--o{ REPARTO_GASTO : define
+    INMUEBLE ||--o{ HABITACION : "divide en (si compartido)"
+    HABITACION }o--o| INQUILINO : "ocupada por"
     CONTRATO }o--o{ INQUILINO : firman
     GASTO ||--o{ REPARTO_GASTO : "se reparte en"
     REPARTO_GASTO }o--|| INQUILINO : "asigna a (%)"

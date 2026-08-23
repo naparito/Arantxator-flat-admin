@@ -16,6 +16,7 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 
 	inmuebles := sqlite.NewInmueblesRepo(db)
 	documentos := sqlite.NewDocumentosRepo(db)
+	habitaciones := sqlite.NewHabitacionesRepo(db)
 
 	mux.HandleFunc("GET /api/inmuebles", handleListInmuebles(inmuebles))
 	mux.HandleFunc("POST /api/inmuebles", handleCreateInmueble(inmuebles))
@@ -24,6 +25,11 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 	mux.HandleFunc("POST /api/inmuebles/{id}/documentos", handleUploadDocumentoInmueble(inmuebles, documentos))
 	mux.HandleFunc("GET /api/inmuebles/{id}/documentos", handleListDocumentosInmueble(inmuebles, documentos))
 	mux.HandleFunc("GET /api/documentos/{id}", handleGetDocumento(documentos))
+	mux.HandleFunc("GET /api/inmuebles/{id}/habitaciones", handleListHabitaciones(inmuebles, habitaciones))
+	mux.HandleFunc("POST /api/inmuebles/{id}/habitaciones", handleCreateHabitacion(inmuebles, habitaciones))
+	mux.HandleFunc("GET /api/habitaciones/{id}", handleGetHabitacion(habitaciones))
+	mux.HandleFunc("PUT /api/habitaciones/{id}", handleUpdateHabitacion(habitaciones))
+	mux.HandleFunc("DELETE /api/habitaciones/{id}", handleDeleteHabitacion(habitaciones))
 }
 
 func handleHealth(db *sql.DB) http.HandlerFunc {

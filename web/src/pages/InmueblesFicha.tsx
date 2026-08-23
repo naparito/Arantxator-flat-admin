@@ -1,11 +1,11 @@
-import { type ChangeEvent, useEffect, useRef, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
-import type { Documento, Inmueble, Suministro, Suministros } from '../api/types'
+import type { Documento, Habitacion, HabitacionInput, Inmueble, Suministro, Suministros } from '../api/types'
 import { EstadoPill } from '../components/EstadoPill'
 import { IconCasa, IconChevronRight, IconDoc } from '../components/icons'
 
-type Tab = 'datos' | 'documentacion' | 'suministros' | 'incidencias'
+type Tab = 'datos' | 'documentacion' | 'suministros' | 'habitaciones' | 'incidencias'
 
 const TIPO_LABEL: Record<Inmueble['tipo'], string> = {
   piso: 'Piso',
@@ -91,6 +91,11 @@ export function InmueblesFicha() {
         <button type="button" className={`tab ${tab === 'suministros' ? 'active' : ''}`} onClick={() => setTab('suministros')}>
           Suministros
         </button>
+        {inmueble.compartido && (
+          <button type="button" className={`tab ${tab === 'habitaciones' ? 'active' : ''}`} onClick={() => setTab('habitaciones')}>
+            Habitaciones
+          </button>
+        )}
         <button type="button" className="tab" disabled title="Disponible en el hito 4">
           Incidencias <span className="badge">0</span>
         </button>
@@ -100,6 +105,7 @@ export function InmueblesFicha() {
         {tab === 'datos' && <DatosGenerales inmueble={inmueble} />}
         {tab === 'documentacion' && <Documentacion inmuebleId={inmueble.id} />}
         {tab === 'suministros' && <SuministrosTab inmueble={inmueble} onGuardado={setInmueble} />}
+        {tab === 'habitaciones' && inmueble.compartido && <HabitacionesTab inmuebleId={inmueble.id} />}
       </div>
     </>
   )
@@ -298,6 +304,126 @@ function SuministrosTab({ inmueble, onGuardado }: { inmueble: Inmueble; onGuarda
         </button>
         {guardadoOk && <span style={{ color: 'var(--good)', alignSelf: 'center', fontSize: 13 }}>Guardado.</span>}
       </div>
+    </div>
+  )
+}
+
+const HABITACION_VACIA: HabitacionInput = { nombre: '', m2: 0, tieneBano: false, amueblada: false, notas: '' }
+
+function HabitacionesTab({ inmuebleId }: { inmuebleId: number }) {
+  const [habitaciones, setHabitaciones] = useState<Habitacion[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [nueva, setNueva] = useState<HabitacionInput>(HABITACION_VACIA)
+  const [creando, setCreando] = useState(false)
+
+  useEffect(() => {
+    api
+      .listHabitaciones(inmuebleId)
+      .then(setHabitaciones)
+      .catch((err) => setError(err instanceof Error ? err.message : 'No se pudieron cargar las habitaciones'))
+  }, [inmuebleId])
+
+  async function onCrear(e: FormEvent) {
+    e.preventDefault()
+    if (!nueva.nombre.trim()) return
+    setCreando(true)
+    setError(null)
+    try {
+      const creada = await api.createHabitacion(inmuebleId, nueva)
+      setHabitaciones((prev) => [...(prev ?? []), creada])
+      setNueva(HABITACION_VACIA)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo crear la habitación')
+    } finally {
+      setCreando(false)
+    }
+  }
+
+  async function onBorrar(id: number) {
+    try {
+      await api.deleteHabitacion(id)
+      setHabitaciones((prev) => (prev ?? []).filter((h) => h.id !== id))
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo borrar la habitación')
+    }
+  }
+
+  return (
+    <div className="tab-content">
+      {error && <div className="form-error">{error}</div>}
+
+      <div className="doc-list">
+        {habitaciones === null && <p>Cargando habitaciones…</p>}
+        {habitaciones !== null && habitaciones.length === 0 && (
+          <div className="empty-state">Todavía no hay habitaciones. Da de alta la primera abajo.</div>
+        )}
+        {habitaciones?.map((h) => (
+          <div key={h.id} className="doc-row">
+            <span className="name">{h.nombre}</span>
+            <span className="meta">
+              {h.m2 ? `${h.m2} m²` : '—'}
+              {h.tieneBano ? ' · con baño' : ''}
+              {h.amueblada ? ' · amueblada' : ''}
+            </span>
+            <span className="meta">{h.inquilinoId ? `Ocupante #${h.inquilinoId}` : 'Sin asignar'}</span>
+            <button type="button" className="btn-ghost" onClick={() => onBorrar(h.id)}>
+              Borrar
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <form className="form" onSubmit={onCrear} style={{ maxWidth: 'none' }}>
+        <div className="section-title">Nueva habitación</div>
+        <div className="form-grid">
+          <div className="field">
+            <label htmlFor="hab-nombre">Nombre *</label>
+            <input
+              id="hab-nombre"
+              value={nueva.nombre}
+              onChange={(e) => setNueva((prev) => ({ ...prev, nombre: e.target.value }))}
+              placeholder="Ej. Habitación 1"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="hab-m2">m²</label>
+            <input
+              id="hab-m2"
+              type="number"
+              min={0}
+              value={nueva.m2 || ''}
+              onChange={(e) => setNueva((prev) => ({ ...prev, m2: Number(e.target.value) }))}
+            />
+          </div>
+          <div className="field-check">
+            <input
+              id="hab-bano"
+              type="checkbox"
+              checked={nueva.tieneBano}
+              onChange={(e) => setNueva((prev) => ({ ...prev, tieneBano: e.target.checked }))}
+            />
+            <label htmlFor="hab-bano">Baño propio</label>
+          </div>
+          <div className="field-check">
+            <input
+              id="hab-amueblada"
+              type="checkbox"
+              checked={nueva.amueblada}
+              onChange={(e) => setNueva((prev) => ({ ...prev, amueblada: e.target.checked }))}
+            />
+            <label htmlFor="hab-amueblada">Amueblada</label>
+          </div>
+          <div className="field span-2">
+            <label htmlFor="hab-notas">Notas</label>
+            <input id="hab-notas" value={nueva.notas} onChange={(e) => setNueva((prev) => ({ ...prev, notas: e.target.value }))} />
+          </div>
+        </div>
+        <div className="form-actions">
+          <button type="submit" className="btn-primary" disabled={!nueva.nombre.trim() || creando}>
+            {creando ? 'Añadiendo…' : 'Añadir habitación'}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }

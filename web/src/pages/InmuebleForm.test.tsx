@@ -54,5 +54,24 @@ describe('InmuebleForm — alta', () => {
     expect(enviado.nombre).toBe('Bravo Murillo 210')
     expect(enviado.direccion).toBe('Calle Bravo Murillo 210, Bajo A')
     expect(enviado.tipo).toBe('piso')
+    expect(enviado.compartido).toBe(false)
+  })
+
+  it('envía compartido=true al marcar el check', async () => {
+    vi.mocked(api.createInmueble).mockResolvedValue({ id: 42 } as never)
+
+    render(
+      <MemoryRouter>
+        <InmuebleForm />
+      </MemoryRouter>,
+    )
+
+    await userEvent.type(screen.getByLabelText(/nombre/i), 'Bravo Murillo 210')
+    await userEvent.type(screen.getByLabelText(/dirección/i), 'Calle Bravo Murillo 210, Bajo A')
+    await userEvent.click(screen.getByLabelText(/compartido/i))
+
+    await userEvent.click(screen.getByRole('button', { name: /crear inmueble/i }))
+    const enviado = vi.mocked(api.createInmueble).mock.calls[0][0]
+    expect(enviado.compartido).toBe(true)
   })
 })
