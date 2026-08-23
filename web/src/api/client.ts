@@ -1,4 +1,4 @@
-import type { Documento, Habitacion, HabitacionInput, Inmueble, InmuebleInput } from './types'
+import type { Documento, Habitacion, HabitacionInput, Inmueble, InmuebleInput, Inquilino, InquilinoInput } from './types'
 
 const API_BASE = '/api'
 
@@ -46,6 +46,20 @@ export const api = {
   updateHabitacion: (id: number, data: HabitacionInput) =>
     request<Habitacion>(`/habitaciones/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteHabitacion: (id: number) => request<void>(`/habitaciones/${id}`, { method: 'DELETE' }),
+  asignarOcupante: (habitacionId: number, inquilinoId: number | null) =>
+    request<Habitacion>(`/habitaciones/${habitacionId}/ocupante`, { method: 'PUT', body: JSON.stringify({ inquilinoId }) }),
+  listInquilinos: () => request<Inquilino[]>('/inquilinos'),
+  getInquilino: (id: number) => request<Inquilino>(`/inquilinos/${id}`),
+  createInquilino: (data: InquilinoInput) =>
+    request<Inquilino>('/inquilinos', { method: 'POST', body: JSON.stringify(data) }),
+  updateInquilino: (id: number, data: InquilinoInput) =>
+    request<Inquilino>(`/inquilinos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  listDocumentosInquilino: (inquilinoId: number) => request<Documento[]>(`/inquilinos/${inquilinoId}/documentos`),
+  uploadDocumentoInquilino: (inquilinoId: number, file: File) => {
+    const form = new FormData()
+    form.append('archivo', file)
+    return request<Documento>(`/inquilinos/${inquilinoId}/documentos`, { method: 'POST', body: form })
+  },
 }
 
 export type EstadoFilter = Inmueble['estado'] | undefined

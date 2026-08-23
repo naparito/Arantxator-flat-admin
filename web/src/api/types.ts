@@ -77,6 +77,35 @@ export const suministrosVacios = (): Suministros => ({
   internet: { ...SUMINISTRO_VACIO },
 })
 
+export interface Inquilino {
+  id: number
+  nombreCompleto: string
+  documentoIdentidad: string
+  fechaNacimiento: string | null
+  telefono: string
+  email: string
+  nacionalidad: string
+  contactoEmergenciaNombre: string
+  contactoEmergenciaTelefono: string
+  iban: string
+  creadoEn: string
+  actualizadoEn: string
+}
+
+export type InquilinoInput = Omit<Inquilino, 'id' | 'creadoEn' | 'actualizadoEn'>
+
+export const inquilinoVacio = (): InquilinoInput => ({
+  nombreCompleto: '',
+  documentoIdentidad: '',
+  fechaNacimiento: null,
+  telefono: '',
+  email: '',
+  nacionalidad: '',
+  contactoEmergenciaNombre: '',
+  contactoEmergenciaTelefono: '',
+  iban: '',
+})
+
 export const inmuebleVacio = (): InmuebleInput => ({
   nombre: '',
   direccion: '',

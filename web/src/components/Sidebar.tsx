@@ -1,9 +1,9 @@
 import { NavLink } from 'react-router-dom'
 import { IconCasa, IconContratos, IconGastos, IconInquilinos, IconResumen } from './icons'
 
-// Inquilinos, Contratos y Gastos todavía no tienen pantallas propias (llegan
-// en los siguientes hitos): se muestran en la navegación, tal como en el
-// diseño aprobado, pero sin enlace activo.
+// Contratos y Gastos todavía no tienen pantallas propias (llegan en los
+// siguientes hitos): se muestran en la navegación, tal como en el diseño
+// aprobado, pero sin enlace activo.
 function ModuloPendiente({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <span className="nav-item disabled" title={`${label} — disponible en un próximo hito`}>
@@ -44,7 +44,16 @@ export function Sidebar() {
             Inmuebles
           </span>
         </NavLink>
-        <ModuloPendiente icon={<IconInquilinos />} label="Inquilinos" />
+        <NavLink
+          to="/inquilinos"
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          style={{ color: 'var(--inquilinos)' }}
+        >
+          <IconInquilinos />
+          <span className="label" style={{ color: 'var(--sidebar-ink)' }}>
+            Inquilinos
+          </span>
+        </NavLink>
         <ModuloPendiente icon={<IconContratos />} label="Contratos" />
         <ModuloPendiente icon={<IconGastos />} label="Gastos" />
       </div>

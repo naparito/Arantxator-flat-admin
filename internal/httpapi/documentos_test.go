@@ -94,6 +94,89 @@ func TestAPI_SubirYDescargarDocumento(t *testing.T) {
 	}
 }
 
+func subirDocumentoInquilino(t *testing.T, baseURL string, inquilinoID any, nombreArchivo, tipoMime string, contenido []byte) *http.Response {
+	t.Helper()
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	header := textproto.MIMEHeader{}
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="archivo"; filename="%s"`, nombreArchivo))
+	header.Set("Content-Type", tipoMime)
+	part, err := mw.CreatePart(header)
+	if err != nil {
+		t.Fatalf("CreatePart: %v", err)
+	}
+	if _, err := part.Write(contenido); err != nil {
+		t.Fatalf("escribiendo contenido: %v", err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatalf("cerrando multipart writer: %v", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/inquilinos/%v/documentos", baseURL, inquilinoID), &buf)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST documento de inquilino: %v", err)
+	}
+	return resp
+}
+
+func TestAPI_SubirYDescargarDocumentoDeInquilino(t *testing.T) {
+	srv, _ := newTestServer(t)
+
+	_, inquilino := postInquilino(t, srv, map[string]any{"nombreCompleto": "x", "documentoIdentidad": "y"})
+	inquilinoID := inquilino["id"]
+
+	contenido := []byte{0x25, 0x50, 0x44, 0x46, 'd', 'n', 'i'}
+	resp := subirDocumentoInquilino(t, srv.URL, inquilinoID, "dni.pdf", "application/pdf", contenido)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("esperaba 201 al subir el documento, obtuve %d: %s", resp.StatusCode, body)
+	}
+	var doc map[string]any
+	json.NewDecoder(resp.Body).Decode(&doc)
+	docID := doc["id"]
+
+	descarga, err := http.Get(fmt.Sprintf("%s/api/documentos/%v", srv.URL, docID))
+	if err != nil {
+		t.Fatalf("GET /api/documentos/{id}: %v", err)
+	}
+	defer descarga.Body.Close()
+	recibido, err := io.ReadAll(descarga.Body)
+	if err != nil {
+		t.Fatalf("leyendo cuerpo de la descarga: %v", err)
+	}
+	if !bytes.Equal(recibido, contenido) {
+		t.Fatalf("el contenido descargado no es idéntico al subido: %v != %v", recibido, contenido)
+	}
+
+	listaResp, err := http.Get(fmt.Sprintf("%s/api/inquilinos/%v/documentos", srv.URL, inquilinoID))
+	if err != nil {
+		t.Fatalf("GET listado de documentos: %v", err)
+	}
+	defer listaResp.Body.Close()
+	var lista []map[string]any
+	json.NewDecoder(listaResp.Body).Decode(&lista)
+	if len(lista) != 1 || lista[0]["nombreArchivo"] != "dni.pdf" {
+		t.Fatalf("esperaba el documento recién subido en el listado, obtuve %+v", lista)
+	}
+}
+
+func TestAPI_SubirDocumentoAInquilinoInexistente(t *testing.T) {
+	srv, _ := newTestServer(t)
+
+	resp := subirDocumentoInquilino(t, srv.URL, 999, "x.pdf", "application/pdf", []byte("x"))
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("esperaba 404 al subir a un inquilino inexistente, obtuve %d", resp.StatusCode)
+	}
+}
+
 func TestAPI_DescargarDocumentoInexistente(t *testing.T) {
 	srv, _ := newTestServer(t)
 

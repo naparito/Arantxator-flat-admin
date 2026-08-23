@@ -85,6 +85,15 @@ export function IconChevronRight({ size = 12 }: IconProps) {
   )
 }
 
+export function IconSearch({ size = 15 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="m17 17-3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export function IconDoc({ size = 16 }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
