@@ -10,7 +10,7 @@ import (
 
 func TestInquilinosRepo_CreateConTodosLosCampos(t *testing.T) {
 	repo := sqlite.NewInquilinosRepo(newTestDB(t))
-	nacimiento := time.Date(1992, 3, 14, 0, 0, 0, 0, time.UTC)
+	nacimiento := domain.Fecha(time.Date(1992, 3, 14, 0, 0, 0, 0, time.UTC))
 
 	entrada := domain.Inquilino{
 		NombreCompleto:             "Laura Fernández Ruiz",
@@ -46,7 +46,7 @@ func TestInquilinosRepo_CreateConTodosLosCampos(t *testing.T) {
 		leido.IBAN != entrada.IBAN {
 		t.Fatalf("el inquilino leído no coincide con el creado:\n  creado=%+v\n  leído =%+v", entrada, leido)
 	}
-	if leido.FechaNacimiento == nil || !leido.FechaNacimiento.Equal(nacimiento) {
+	if leido.FechaNacimiento == nil || !time.Time(*leido.FechaNacimiento).Equal(time.Time(nacimiento)) {
 		t.Fatalf("fecha de nacimiento no coincide: %v", leido.FechaNacimiento)
 	}
 	if leido.CreadoEn.IsZero() || leido.ActualizadoEn.IsZero() {

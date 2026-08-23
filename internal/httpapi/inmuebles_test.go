@@ -61,6 +61,25 @@ func TestAPI_CrearYLeerInmueble(t *testing.T) {
 	}
 }
 
+// TestAPI_CrearInmuebleConCertificadoEnergeticoCaducidad cubre el mismo
+// formato de fecha ("AAAA-MM-DD") que manda un <input type="date">, ver
+// domain.Fecha y el test análogo de inquilinos.
+func TestAPI_CrearInmuebleConCertificadoEnergeticoCaducidad(t *testing.T) {
+	srv, _ := newTestServer(t)
+
+	resp, creado := postInmueble(t, srv, map[string]any{
+		"nombre": "x", "direccion": "y", "tipo": "piso",
+		"certificadoEnergeticoLetra":     "D",
+		"certificadoEnergeticoCaducidad": "2029-03-15",
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("esperaba 201 con certificadoEnergeticoCaducidad en formato AAAA-MM-DD, obtuve %d: %+v", resp.StatusCode, creado)
+	}
+	if creado["certificadoEnergeticoCaducidad"] != "2029-03-15" {
+		t.Fatalf("esperaba la fecha de caducidad tal cual en la respuesta, obtuve %v", creado["certificadoEnergeticoCaducidad"])
+	}
+}
+
 func TestAPI_CrearInmuebleTipoInvalido(t *testing.T) {
 	srv, _ := newTestServer(t)
 

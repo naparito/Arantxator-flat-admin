@@ -10,7 +10,7 @@ import (
 
 func TestInmueblesRepo_CreateConTodosLosCampos(t *testing.T) {
 	repo := sqlite.NewInmueblesRepo(newTestDB(t))
-	caducidad := time.Date(2029, 3, 15, 0, 0, 0, 0, time.UTC)
+	caducidad := domain.Fecha(time.Date(2029, 3, 15, 0, 0, 0, 0, time.UTC))
 
 	entrada := domain.Inmueble{
 		Nombre:                         "Bravo Murillo 210",
@@ -72,7 +72,7 @@ func TestInmueblesRepo_CreateConTodosLosCampos(t *testing.T) {
 		leido.Suministros != entrada.Suministros {
 		t.Fatalf("el inmueble leído no coincide con el creado:\n  creado=%+v\n  leído =%+v", entrada, leido)
 	}
-	if leido.CertificadoEnergeticoCaducidad == nil || !leido.CertificadoEnergeticoCaducidad.Equal(caducidad) {
+	if leido.CertificadoEnergeticoCaducidad == nil || !time.Time(*leido.CertificadoEnergeticoCaducidad).Equal(time.Time(caducidad)) {
 		t.Fatalf("fecha de caducidad del certificado no coincide: %v", leido.CertificadoEnergeticoCaducidad)
 	}
 	if leido.CreadoEn.IsZero() || leido.ActualizadoEn.IsZero() {
