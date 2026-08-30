@@ -16,10 +16,10 @@ Cada hito de módulo se construye siempre **vertical, no por capas**: en el mism
 | 0 | Fundaciones | `feature/scaffold-inicial` | ✅ Hecho — esquema SQLite, servidor Go, GUI embebida placeholder |
 | 1 | Inmuebles + bootstrap SPA | `feature/modulo-inmuebles` | ✅ Hecho — alta/edición de inmuebles (incl. compartidos por habitaciones), documentos, primera pantalla real |
 | 7 | Empaquetado e instalador | `feature/instalador` | ✅ Hecho — adelantado antes del Hito 2 (ver nota abajo). `Arantxator-Setup.exe` autoinstalable |
-| 2 | Inquilinos | `feature/modulo-inquilinos` | Alta/edición de inquilinos, documentos |
-| 3 | Contratos | `feature/modulo-contratos` | Contratos con reglas LAU, vínculo N:N con inquilinos |
-| 4 | Incidencias | `feature/modulo-incidencias` | Gestión de incidencias por inmueble |
-| 5 | Gastos y reparto | `feature/modulo-gastos` | Facturas, reparto porcentual versionado, recibos |
+| 2 | Inquilinos | `feature/modulo-inquilinos` | ✅ Hecho — alta/edición de inquilinos, documentos, asignación de ocupante de habitación |
+| 3 | Contratos | `feature/modulo-contratos` | ✅ Hecho — contratos con reglas LAU, vínculo N:N con inquilinos, contrato por habitación y % de ocupación |
+| 4 | Incidencias | `feature/modulo-incidencias` | ✅ Hecho — gestión de incidencias por inmueble con flujo de estados fechado |
+| 5 | Gastos y reparto | `feature/modulo-gastos` | ✅ Hecho — facturas, reparto porcentual versionado, recibos individuales, cobros de renta y rentabilidad neta |
 | 6 | Dashboard y notificaciones | `feature/dashboard-notificaciones` | Resumen agregado + centro de notificaciones real |
 
 Hitos 1–6 entregan la v1.0-alpha funcional; el hito 7 es lo que la convierte en algo que un usuario sin conocimientos técnicos puede instalar y usar.
@@ -247,7 +247,25 @@ Reportar una incidencia sobre un inmueble, cambiar su estado a "en proceso", y v
 
 ---
 
-## Hito 5 — Gastos y reparto
+## Hito 5 — Gastos y reparto *(hecho)*
+
+> **Cerrado** en `feature/modulo-gastos` (PR #9, merge a `development`).
+> Decisiones tomadas al implementar, justificadas en el código:
+> - **Recibo individual**: dato derivado en lectura (`domain.CalcularRecibo`),
+>   no se persiste — como el estado del contrato o el % de ocupación del
+>   Hito 3. El redondeo se reparte en céntimos y el último inquilino absorbe
+>   el resto, de modo que la suma de los recibos cuadra al céntimo con el
+>   total (78,00 € a 33/33/34 % → 25,74 + 25,74 + 26,52 = 78,00 €).
+> - **Ingresos / rentabilidad**: tabla nueva `cobros_renta` (migración
+>   `0006`), no derivación de la renta teórica de los contratos — el §7.3
+>   dice que el cobro "se registra junto a los gastos" y la rentabilidad
+>   *neta* mide la renta efectivamente cobrada. Endpoint propio
+>   `GET /api/inmuebles/{id}/rentabilidad?periodo=AAAA-MM`.
+> - **Estado de pago**: se guarda `pendiente`/`pagado`; `vencido` se deriva
+>   al leer (pendiente + vencimiento pasado), igual que el estado de un
+>   contrato.
+> - **Migración `0006`**: añade `cobros_renta` y `repartos_gasto.motivo`;
+>   aplica limpiamente sobre una base de datos nueva.
 
 ### Qué hace este módulo
 Registro de facturas por inmueble (agua, luz, gas, internet, comunidad, IBI, seguro, mantenimiento…) con su estado de pago. Para pisos compartidos, un reparto porcentual **versionado** por inquilino y tipo de gasto (no un campo fijo del inmueble): cada factura calcula automáticamente cuánto debe cada inquilino según el % vigente en su fecha, y genera el recibo individual. También calcula la rentabilidad neta del inmueble (ingresos − gastos).
