@@ -1,4 +1,14 @@
-import type { Documento, Habitacion, HabitacionInput, Inmueble, InmuebleInput, Inquilino, InquilinoInput } from './types'
+import type {
+  Contrato,
+  ContratoInput,
+  Documento,
+  Habitacion,
+  HabitacionInput,
+  Inmueble,
+  InmuebleInput,
+  Inquilino,
+  InquilinoInput,
+} from './types'
 
 const API_BASE = '/api'
 
@@ -59,6 +69,19 @@ export const api = {
     const form = new FormData()
     form.append('archivo', file)
     return request<Documento>(`/inquilinos/${inquilinoId}/documentos`, { method: 'POST', body: form })
+  },
+  listContratosInquilino: (inquilinoId: number) => request<Contrato[]>(`/inquilinos/${inquilinoId}/contratos`),
+  listContratos: () => request<Contrato[]>('/contratos'),
+  getContrato: (id: number) => request<Contrato>(`/contratos/${id}`),
+  createContrato: (data: ContratoInput) =>
+    request<Contrato>('/contratos', { method: 'POST', body: JSON.stringify(data) }),
+  updateContrato: (id: number, data: ContratoInput) =>
+    request<Contrato>(`/contratos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  listDocumentosContrato: (contratoId: number) => request<Documento[]>(`/contratos/${contratoId}/documentos`),
+  uploadDocumentoContrato: (contratoId: number, file: File) => {
+    const form = new FormData()
+    form.append('archivo', file)
+    return request<Documento>(`/contratos/${contratoId}/documentos`, { method: 'POST', body: form })
   },
 }
 

@@ -18,10 +18,11 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 	documentos := sqlite.NewDocumentosRepo(db)
 	habitaciones := sqlite.NewHabitacionesRepo(db)
 	inquilinos := sqlite.NewInquilinosRepo(db)
+	contratos := sqlite.NewContratosRepo(db)
 
-	mux.HandleFunc("GET /api/inmuebles", handleListInmuebles(inmuebles))
+	mux.HandleFunc("GET /api/inmuebles", handleListInmuebles(inmuebles, contratos))
 	mux.HandleFunc("POST /api/inmuebles", handleCreateInmueble(inmuebles))
-	mux.HandleFunc("GET /api/inmuebles/{id}", handleGetInmueble(inmuebles))
+	mux.HandleFunc("GET /api/inmuebles/{id}", handleGetInmueble(inmuebles, contratos))
 	mux.HandleFunc("PUT /api/inmuebles/{id}", handleUpdateInmueble(inmuebles))
 	mux.HandleFunc("POST /api/inmuebles/{id}/documentos", handleUploadDocumentoInmueble(inmuebles, documentos))
 	mux.HandleFunc("GET /api/inmuebles/{id}/documentos", handleListDocumentosInmueble(inmuebles, documentos))
@@ -39,6 +40,14 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 	mux.HandleFunc("PUT /api/inquilinos/{id}", handleUpdateInquilino(inquilinos))
 	mux.HandleFunc("POST /api/inquilinos/{id}/documentos", handleUploadDocumentoInquilino(inquilinos, documentos))
 	mux.HandleFunc("GET /api/inquilinos/{id}/documentos", handleListDocumentosInquilino(inquilinos, documentos))
+	mux.HandleFunc("GET /api/inquilinos/{id}/contratos", handleListContratosInquilino(contratos, inquilinos))
+
+	mux.HandleFunc("GET /api/contratos", handleListContratos(contratos))
+	mux.HandleFunc("POST /api/contratos", handleCreateContrato(contratos, inmuebles, habitaciones, inquilinos))
+	mux.HandleFunc("GET /api/contratos/{id}", handleGetContrato(contratos))
+	mux.HandleFunc("PUT /api/contratos/{id}", handleUpdateContrato(contratos, inmuebles, habitaciones, inquilinos))
+	mux.HandleFunc("POST /api/contratos/{id}/documentos", handleUploadDocumentoContrato(contratos, documentos))
+	mux.HandleFunc("GET /api/contratos/{id}/documentos", handleListDocumentosContrato(contratos, documentos))
 }
 
 func handleHealth(db *sql.DB) http.HandlerFunc {

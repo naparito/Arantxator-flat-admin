@@ -47,6 +47,22 @@ type Inmueble struct {
 	Suministros   Suministros `json:"suministros"`
 	CreadoEn      time.Time   `json:"creadoEn"`
 	ActualizadoEn time.Time   `json:"actualizadoEn"`
+
+	// Ocupacion es un dato derivado en lectura (no una columna): solo se
+	// rellena para inmuebles compartidos, con el % de habitaciones que
+	// tienen un contrato vigente. En un inmueble no compartido es nil y el
+	// estado operativo binario (Estado) ya representa la ocupación.
+	Ocupacion *OcupacionInmueble `json:"ocupacion,omitempty"`
+}
+
+// OcupacionInmueble resume la ocupación de un inmueble compartido:
+// habitaciones con al menos un contrato vigente sobre el total, y su
+// porcentaje redondeado (ej. 2/3 -> 67%). Se calcula al leer, cruzando
+// contratos y habitaciones; el frontend no tiene que recomponerlo.
+type OcupacionInmueble struct {
+	HabitacionesTotales  int `json:"habitacionesTotales"`
+	HabitacionesOcupadas int `json:"habitacionesOcupadas"`
+	Porcentaje           int `json:"porcentaje"`
 }
 
 // Suministro guarda los datos de contratación de una compañía suministradora

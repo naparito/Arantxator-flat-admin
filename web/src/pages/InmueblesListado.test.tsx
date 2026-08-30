@@ -93,4 +93,25 @@ describe('InmueblesListado', () => {
 
     await waitFor(() => expect(screen.getByText(/todavía no hay inmuebles/i)).toBeInTheDocument())
   })
+
+  it('muestra el % de ocupación de un inmueble compartido', async () => {
+    vi.mocked(api.listInmuebles).mockResolvedValue([
+      inmueble({
+        id: 1,
+        direccion: 'Calle Bravo Murillo 210, Bajo A',
+        compartido: true,
+        estado: 'disponible',
+        ocupacion: { habitacionesOcupadas: 2, habitacionesTotales: 3, porcentaje: 67 },
+      }),
+    ])
+
+    render(
+      <MemoryRouter>
+        <InmueblesListado />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => expect(screen.getByText('Calle Bravo Murillo 210, Bajo A')).toBeInTheDocument())
+    expect(screen.getByText(/2\/3 habitaciones · 67%/)).toBeInTheDocument()
+  })
 })

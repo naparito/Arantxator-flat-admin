@@ -627,6 +627,130 @@ table.data-table {
   margin-top: 3px;
 }
 
+/* ---- Contratos ---- */
+.chip.contratos.active {
+  background: var(--contratos);
+  color: #fff;
+  border-color: var(--contratos);
+}
+.data-table td .prop {
+  font-weight: 700;
+}
+.data-table td .tenant {
+  font-size: 12.5px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+.data-table td.vig {
+  font-size: 13px;
+}
+.data-table td.vig .sub {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+.data-table td.rent {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+.pill.good {
+  background: var(--good-soft);
+  color: var(--good);
+}
+.pill.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.pill.crit {
+  background: var(--critical-soft);
+  color: var(--critical);
+}
+.pill.muted {
+  background: var(--border-soft);
+  color: var(--ink-muted);
+}
+.v .hint,
+.field-static .v .hint {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  margin-top: 2px;
+  font-weight: 400;
+}
+.fianza-panel {
+  border-color: oklch(56% 0.18 25 / 30%);
+}
+.fianza-panel.pendiente {
+  background: var(--critical-soft);
+}
+.fianza-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.fianza-amount {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--critical);
+  margin-top: 2px;
+}
+.fianza-alert {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid oklch(56% 0.18 25 / 20%);
+  font-size: 12.5px;
+  color: var(--critical);
+  line-height: 1.5;
+}
+
+/* Multi-selección de co-arrendatarios en el formulario de contrato */
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 12px 14px;
+  background: var(--surface);
+}
+
+/* Barra de % de ocupación de un inmueble compartido */
+.ocupacion {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ocupacion-bar {
+  height: 6px;
+  border-radius: 100px;
+  background: var(--border-soft);
+  overflow: hidden;
+}
+.ocupacion-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 100px;
+  background: var(--contratos);
+}
+.ocupacion-label {
+  font-size: 12px;
+  color: var(--ink-muted);
+  font-weight: 600;
+}
+
 /* ---- Histórico (timeline) ---- */
 .timeline {
   display: flex;
