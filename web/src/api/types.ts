@@ -433,6 +433,79 @@ export type CobroInput = Pick<CobroRenta, 'periodo' | 'importe' | 'metodoPago' |
   fechaCobro?: string | null
 }
 
+// ---- Dashboard y centro de notificaciones (Hito 6) ----
+
+export type TipoNotificacion =
+  | 'contrato_por_vencer'
+  | 'fianza_sin_depositar'
+  | 'factura_pendiente'
+  | 'incidencia_abierta'
+
+export type SeveridadNotificacion = 'urgente' | 'aviso' | 'info'
+
+export type EntidadNotificacion = 'contrato' | 'gasto' | 'incidencia'
+
+// Notificacion es un aviso evaluado al vuelo por el backend. `clave` es su
+// identidad determinista ("<tipo>:<entidad>:<id>"): es lo que se envía a
+// POST /api/notificaciones/{clave}/leida y sobrevive a un reinicio.
+export interface Notificacion {
+  clave: string
+  tipo: TipoNotificacion
+  severidad: SeveridadNotificacion
+  titulo: string
+  descripcion: string
+  entidadTipo: EntidadNotificacion
+  entidadId: number
+  inmuebleId: number
+  fecha: string
+  leida: boolean
+}
+
+export interface NotificacionesResp {
+  notificaciones: Notificacion[]
+  totalActivas: number
+  totalSinLeer: number
+}
+
+export interface OcupacionCartera {
+  inmueblesTotales: number
+  inmueblesOcupados: number
+  habitacionesTotales: number
+  habitacionesOcupadas: number
+  porcentaje: number
+}
+
+export interface DashboardResumen {
+  periodo: string
+  ocupacion: OcupacionCartera
+  contratosPorVencer: number
+  gastosPendientes: { cantidad: number; importe: number }
+  incidenciasAbiertas: number
+  rentabilidad: { periodo: string; ingresos: number; gastos: number; neto: number }
+  notificacionesSinLeer: number
+}
+
+export const SEVERIDAD_LABEL: Record<SeveridadNotificacion, string> = {
+  urgente: 'Urgente',
+  aviso: 'Aviso',
+  info: 'Info',
+}
+
+// Ruta interna de la SPA a la que enlaza el "Ver …" de cada aviso, según la
+// entidad que lo origina.
+export function rutaEntidadNotificacion(n: Notificacion): string {
+  switch (n.entidadTipo) {
+    case 'contrato':
+      return `/contratos/${n.entidadId}`
+    case 'gasto':
+      return '/gastos'
+    case 'incidencia':
+      return `/inmuebles/${n.inmuebleId}`
+    default:
+      return '/'
+  }
+}
+
 export const inmuebleVacio = (): InmuebleInput => ({
   nombre: '',
   direccion: '',

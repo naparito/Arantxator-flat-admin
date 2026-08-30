@@ -100,6 +100,30 @@ func (r *GastosRepo) ListByInmueble(inmuebleID int64) ([]domain.Gasto, error) {
 	return gastos, rows.Err()
 }
 
+// List devuelve todas las facturas de toda la cartera, las más recientes
+// (por fecha de emisión) primero. Alimenta el resumen del dashboard y el
+// motor de reglas de notificación (§8), que necesitan cruzar gastos de todos
+// los inmuebles sin ir inmueble por inmueble.
+func (r *GastosRepo) List() ([]domain.Gasto, error) {
+	rows, err := r.db.Query(`
+		SELECT ` + gastoColumns + ` FROM gastos
+		ORDER BY fecha_emision DESC, id DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("listando gastos: %w", err)
+	}
+	defer rows.Close()
+
+	gastos := []domain.Gasto{}
+	for rows.Next() {
+		g, err := scanGasto(rows)
+		if err != nil {
+			return nil, fmt.Errorf("leyendo fila de gasto: %w", err)
+		}
+		gastos = append(gastos, g)
+	}
+	return gastos, rows.Err()
+}
+
 // Update sobrescribe los campos editables de una factura (incluye marcarla
 // como pagada). Si pasa a "pagado" sin fecha_pago se sella con hoy; si vuelve
 // a "pendiente" se limpia la fecha_pago.

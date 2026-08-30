@@ -3,6 +3,7 @@ import type {
   CobroRenta,
   Contrato,
   ContratoInput,
+  DashboardResumen,
   Documento,
   Gasto,
   GastoInput,
@@ -14,6 +15,7 @@ import type {
   InmuebleInput,
   Inquilino,
   InquilinoInput,
+  NotificacionesResp,
   Recibo,
   RepartoInmueble,
   RepartoInput,
@@ -127,6 +129,13 @@ export const api = {
     request<CobroRenta>(`/inmuebles/${inmuebleId}/cobros`, { method: 'POST', body: JSON.stringify(data) }),
   updateCobro: (id: number, data: CobroInput) =>
     request<CobroRenta>(`/cobros/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getDashboardResumen: (periodo?: string) =>
+    request<DashboardResumen>(`/dashboard/resumen${periodo ? `?periodo=${periodo}` : ''}`),
+  listNotificaciones: () => request<NotificacionesResp>('/notificaciones'),
+  marcarNotificacionLeida: (clave: string) =>
+    request<{ clave: string; leida: boolean }>(`/notificaciones/${encodeURIComponent(clave)}/leida`, {
+      method: 'POST',
+    }),
 }
 
 export type EstadoFilter = Inmueble['estado'] | undefined

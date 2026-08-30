@@ -1,7 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { IconCasa, IconContratos, IconGastos, IconInquilinos, IconResumen } from './icons'
+import { useNotificaciones } from '../api/notificacionesContext'
+import { IconCampana, IconCasa, IconContratos, IconGastos, IconInquilinos, IconResumen } from './icons'
 
 export function Sidebar() {
+  const { sinLeer } = useNotificaciones()
+
   return (
     <nav className="rail" aria-label="Navegación principal">
       <div className="brand">
@@ -14,9 +17,14 @@ export function Sidebar() {
       </div>
 
       <div className="nav">
-        <NavLink to="/inmuebles" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+        <NavLink to="/" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <IconResumen />
           <span className="label">Resumen</span>
+        </NavLink>
+        <NavLink to="/notificaciones" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <IconCampana />
+          <span className="label">Notificaciones</span>
+          {sinLeer != null && sinLeer > 0 && <span className="count alerta">{sinLeer}</span>}
         </NavLink>
       </div>
 

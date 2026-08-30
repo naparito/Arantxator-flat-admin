@@ -84,6 +84,27 @@ func (r *CobrosRepo) ListByInmueble(inmuebleID int64) ([]domain.CobroRenta, erro
 	return cobros, rows.Err()
 }
 
+// List devuelve todos los cobros de renta de toda la cartera, los de periodo
+// más reciente primero. Alimenta la rentabilidad agregada del dashboard (§8)
+// sin ir inmueble por inmueble.
+func (r *CobrosRepo) List() ([]domain.CobroRenta, error) {
+	rows, err := r.db.Query(`SELECT ` + cobroColumns + ` FROM cobros_renta ORDER BY periodo DESC, id DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("listando cobros: %w", err)
+	}
+	defer rows.Close()
+
+	cobros := []domain.CobroRenta{}
+	for rows.Next() {
+		c, err := scanCobro(rows)
+		if err != nil {
+			return nil, fmt.Errorf("leyendo fila de cobro: %w", err)
+		}
+		cobros = append(cobros, c)
+	}
+	return cobros, rows.Err()
+}
+
 func (r *CobrosRepo) Update(id int64, c domain.CobroRenta) (domain.CobroRenta, error) {
 	res, err := r.db.Exec(`
 		UPDATE cobros_renta SET
