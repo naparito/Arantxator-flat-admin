@@ -68,10 +68,13 @@ export function InmueblesFicha() {
             <EstadoPill estado={inmueble.estado} />
           </div>
           <div className="subline">
-            {TIPO_LABEL[inmueble.tipo]}
+            {inmueble.compartido ? `${TIPO_LABEL[inmueble.tipo]} compartido` : TIPO_LABEL[inmueble.tipo]}
             {inmueble.ciudad ? ` · ${inmueble.ciudad}` : ''}
             {inmueble.m2Construidos ? ` · ${inmueble.m2Construidos} m²` : ''}
             {inmueble.numHabitaciones ? ` · ${inmueble.numHabitaciones} habitaciones` : ''}
+            {inmueble.compartido && inmueble.ocupacion
+              ? ` · ${inmueble.ocupacion.habitacionesOcupadas}/${inmueble.ocupacion.habitacionesTotales} ocupadas · ${inmueble.ocupacion.porcentaje}%`
+              : ''}
           </div>
         </div>
         <div className="actions">
@@ -114,6 +117,22 @@ export function InmueblesFicha() {
 function DatosGenerales({ inmueble }: { inmueble: Inmueble }) {
   return (
     <div className="tab-content">
+      {inmueble.compartido && inmueble.ocupacion && (
+        <div className="strip">
+          <div className="strip-item" style={{ flex: 1, minWidth: 220 }}>
+            <div className="k">Ocupación (habitaciones con contrato activo)</div>
+            <div className="v" style={{ marginTop: 6 }}>
+              <div className="ocupacion-bar">
+                <span style={{ width: `${inmueble.ocupacion.porcentaje}%` }} />
+              </div>
+              <span className="ocupacion-label">
+                {inmueble.ocupacion.habitacionesOcupadas}/{inmueble.ocupacion.habitacionesTotales} habitaciones ·{' '}
+                {inmueble.ocupacion.porcentaje}%
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="strip">
         <div className="strip-item">
           <div className="k">Referencia catastral</div>
@@ -253,7 +272,7 @@ function SuministrosTab({ inmueble, onGuardado }: { inmueble: Inmueble; onGuarda
     setGuardando(true)
     setError(null)
     try {
-      const { id: _id, creadoEn: _c, actualizadoEn: _a, ...resto } = inmueble
+      const { id: _id, ocupacion: _o, creadoEn: _c, actualizadoEn: _a, ...resto } = inmueble
       const actualizado = await api.updateInmueble(inmueble.id, { ...resto, suministros })
       onGuardado(actualizado)
       setGuardadoOk(true)

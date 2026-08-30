@@ -45,7 +45,7 @@ export function InmuebleForm() {
       .getInmueble(Number(id))
       .then((m) => {
         if (cancelado) return
-        const { id: _id, creadoEn: _c, actualizadoEn: _a, ...resto } = m
+        const { id: _id, ocupacion: _o, creadoEn: _c, actualizadoEn: _a, ...resto } = m
         setDatos(resto)
         setCargando(false)
       })

@@ -3,12 +3,36 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/naparito/Arantxator-flat-admin/internal/domain"
 	"github.com/naparito/Arantxator-flat-admin/internal/storage/sqlite"
 )
+
+// decorarOcupacion rellena Inmueble.Ocupacion para los inmuebles compartidos
+// (% de habitaciones con contrato vigente). Un fallo al calcularlo no debe
+// tumbar la respuesta del listado/ficha: se deja Ocupacion a nil.
+func decorarOcupacion(m *domain.Inmueble, contratos *sqlite.ContratosRepo) {
+	if !m.Compartido {
+		return
+	}
+	ocupadas, totales, err := contratos.OcupacionInmueble(m.ID, time.Now())
+	if err != nil {
+		return
+	}
+	pct := 0
+	if totales > 0 {
+		pct = int(math.Round(float64(ocupadas) / float64(totales) * 100))
+	}
+	m.Ocupacion = &domain.OcupacionInmueble{
+		HabitacionesTotales:  totales,
+		HabitacionesOcupadas: ocupadas,
+		Porcentaje:           pct,
+	}
+}
 
 var tiposInmuebleValidos = map[domain.TipoInmueble]bool{
 	domain.TipoPiso:       true,
@@ -40,7 +64,7 @@ func validateInmueble(m domain.Inmueble) string {
 	return ""
 }
 
-func handleListInmuebles(repo *sqlite.InmueblesRepo) http.HandlerFunc {
+func handleListInmuebles(repo *sqlite.InmueblesRepo, contratos *sqlite.ContratosRepo) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		estado := domain.EstadoInmueble(r.URL.Query().Get("estado"))
 		if estado != "" && !estadosInmuebleValidos[estado] {
@@ -51,6 +75,9 @@ func handleListInmuebles(repo *sqlite.InmueblesRepo) http.HandlerFunc {
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "no se pudieron listar los inmuebles")
 			return
+		}
+		for i := range inmuebles {
+			decorarOcupacion(&inmuebles[i], contratos)
 		}
 		writeJSON(w, http.StatusOK, inmuebles)
 	}
@@ -76,7 +103,7 @@ func handleCreateInmueble(repo *sqlite.InmueblesRepo) http.HandlerFunc {
 	}
 }
 
-func handleGetInmueble(repo *sqlite.InmueblesRepo) http.HandlerFunc {
+func handleGetInmueble(repo *sqlite.InmueblesRepo, contratos *sqlite.ContratosRepo) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 		if err != nil {
@@ -92,6 +119,7 @@ func handleGetInmueble(repo *sqlite.InmueblesRepo) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "no se pudo leer el inmueble")
 			return
 		}
+		decorarOcupacion(&m, contratos)
 		writeJSON(w, http.StatusOK, m)
 	}
 }

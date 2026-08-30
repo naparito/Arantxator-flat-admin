@@ -54,7 +54,16 @@ export function Sidebar() {
             Inquilinos
           </span>
         </NavLink>
-        <ModuloPendiente icon={<IconContratos />} label="Contratos" />
+        <NavLink
+          to="/contratos"
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          style={{ color: 'var(--contratos)' }}
+        >
+          <IconContratos />
+          <span className="label" style={{ color: 'var(--sidebar-ink)' }}>
+            Contratos
+          </span>
+        </NavLink>
         <ModuloPendiente icon={<IconGastos />} label="Gastos" />
       </div>
 

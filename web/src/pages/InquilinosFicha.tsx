@@ -1,8 +1,9 @@
 import { type ChangeEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
-import type { Documento, Inquilino } from '../api/types'
+import type { Contrato, Documento, Inmueble, Inquilino } from '../api/types'
 import { IconChevronRight, IconDoc } from '../components/icons'
+import { ContratoEstadoPill, formatFecha } from './contratosUtil'
 
 function iniciales(nombreCompleto: string): string {
   const partes = nombreCompleto.trim().split(/\s+/)
@@ -143,15 +144,64 @@ export function InquilinosFicha() {
 
             <div className="panel">
               <h3>Histórico</h3>
-              {/* El histórico de inmuebles ocupados se rellena en el Hito 3, cuando existan contratos. */}
-              <div className="empty-state" style={{ padding: '12px 0' }}>
-                Todavía no hay contratos asociados.
-              </div>
+              <HistoricoContratos inquilinoId={inquilino.id} />
             </div>
           </div>
         </div>
       </div>
     </>
+  )
+}
+
+// HistoricoContratos lista los contratos en los que el inquilino figura como
+// co-arrendatario (se rellena de verdad desde el Hito 3).
+function HistoricoContratos({ inquilinoId }: { inquilinoId: number }) {
+  const [contratos, setContratos] = useState<Contrato[] | null>(null)
+  const [inmuebles, setInmuebles] = useState<Map<number, Inmueble>>(new Map())
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelado = false
+    Promise.all([api.listContratosInquilino(inquilinoId), api.listInmuebles()])
+      .then(([cs, ms]) => {
+        if (cancelado) return
+        setContratos(cs)
+        setInmuebles(new Map(ms.map((m) => [m.id, m])))
+      })
+      .catch((err) => {
+        if (!cancelado) setError(err instanceof Error ? err.message : 'No se pudo cargar el histórico')
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [inquilinoId])
+
+  if (error) return <div className="form-error">{error}</div>
+  if (contratos === null) return <p>Cargando histórico…</p>
+  if (contratos.length === 0) {
+    return (
+      <div className="empty-state" style={{ padding: '12px 0' }}>
+        Todavía no hay contratos asociados.
+      </div>
+    )
+  }
+
+  return (
+    <div className="timeline">
+      {contratos.map((c) => (
+        <Link key={c.id} to={`/contratos/${c.id}`} className="tl-item" style={{ color: 'inherit' }}>
+          <div className="tl-dot" />
+          <div>
+            <div className="tl-title">
+              {inmuebles.get(c.inmuebleId)?.direccion ?? `Inmueble #${c.inmuebleId}`} <ContratoEstadoPill estado={c.estado} />
+            </div>
+            <div className="tl-meta">
+              {formatFecha(c.fechaInicio)} – {formatFecha(c.fechaFin)} · {c.rentaMensual.toLocaleString('es-ES')} €/mes
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
   )
 }
 

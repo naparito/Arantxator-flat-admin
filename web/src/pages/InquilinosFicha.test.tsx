@@ -11,6 +11,8 @@ vi.mock('../api/client', () => ({
     listDocumentosInquilino: vi.fn(),
     uploadDocumentoInquilino: vi.fn(),
     documentoUrl: (id: number) => `/api/documentos/${id}`,
+    listContratosInquilino: vi.fn(),
+    listInmuebles: vi.fn(),
   },
   ApiError: class ApiError extends Error {},
 }))
@@ -44,11 +46,15 @@ describe('InquilinosFicha', () => {
   beforeEach(() => {
     vi.mocked(api.getInquilino).mockReset()
     vi.mocked(api.listDocumentosInquilino).mockReset()
+    vi.mocked(api.listContratosInquilino).mockReset()
+    vi.mocked(api.listInmuebles).mockReset()
   })
 
   it('muestra el IBAN enmascarado y el histórico vacío sin romper el layout', async () => {
     vi.mocked(api.getInquilino).mockResolvedValue(INQUILINO_BASE)
     vi.mocked(api.listDocumentosInquilino).mockResolvedValue([])
+    vi.mocked(api.listContratosInquilino).mockResolvedValue([])
+    vi.mocked(api.listInmuebles).mockResolvedValue([])
 
     renderFicha()
 
@@ -59,6 +65,8 @@ describe('InquilinosFicha', () => {
     expect(screen.getByText(/^ES91 (••••\s*)+1234$/)).toBeInTheDocument()
 
     expect(screen.getByText('Histórico')).toBeInTheDocument()
-    expect(screen.getByText(/todavía no hay contratos asociados/i)).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByText(/todavía no hay contratos asociados/i)).toBeInTheDocument(),
+    )
   })
 })

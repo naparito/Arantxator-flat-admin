@@ -94,9 +94,20 @@ export function InmueblesListado() {
                   <div className="body">
                     <div className="addr">{m.direccion}</div>
                     <div className="zone">
-                      {TIPO_LABEL[m.tipo]}
+                      {m.compartido ? `${TIPO_LABEL[m.tipo]} compartido` : TIPO_LABEL[m.tipo]}
                       {m.ciudad ? ` · ${m.ciudad}` : ''}
                     </div>
+                    {m.compartido && m.ocupacion && (
+                      <div className="ocupacion">
+                        <div className="ocupacion-bar">
+                          <span style={{ width: `${m.ocupacion.porcentaje}%` }} />
+                        </div>
+                        <span className="ocupacion-label">
+                          {m.ocupacion.habitacionesOcupadas}/{m.ocupacion.habitacionesTotales} habitaciones ·{' '}
+                          {m.ocupacion.porcentaje}%
+                        </span>
+                      </div>
+                    )}
                     <div className="stats">
                       <div className="stat">
                         <IconM2 />
