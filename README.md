@@ -7,10 +7,11 @@ de resumen con centro de notificaciones. Todo en una aplicación de escritorio
 autocontenida —un único `.exe` que abre el navegador—, local, sin cuentas ni
 conexión a internet.
 
-> **Estado:** v1.0-alpha funcionalmente completa. Todos los módulos (hitos 0–7)
-> están integrados en `development`. Falta llevar `development` a `main` como
-> primera release y la prueba del instalador en una máquina Windows sin SDKs.
-> Ver [`docs/plan/plan-implementacion.md`](docs/plan/plan-implementacion.md).
+> **Estado:** **v1.0-alpha** — primera release (tag `v1.0-alpha`, rama `main`).
+> Todos los módulos (hitos 0–7) están integrados y probados. `development` sigue
+> siendo la rama de trabajo para lo que venga después. Pendiente sin bloquear la
+> release: probar el instalador en una máquina Windows sin herramientas de
+> desarrollo. Ver [`docs/plan/plan-implementacion.md`](docs/plan/plan-implementacion.md).
 
 ## Documentación
 
