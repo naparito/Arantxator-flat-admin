@@ -148,6 +148,30 @@ func (r *IncidenciasRepo) ListByInmueble(inmuebleID int64) ([]domain.Incidencia,
 	return r.rellenarEventos(inmuebleID, incidencias)
 }
 
+// List devuelve todas las incidencias de toda la cartera, las más recientes
+// primero, SIN rellenar su historial de eventos (el resumen del dashboard y
+// el motor de reglas de notificación solo necesitan el estado y la
+// prioridad, no el timeline). Usa ListByInmueble para la ficha.
+func (r *IncidenciasRepo) List() ([]domain.Incidencia, error) {
+	rows, err := r.db.Query(`
+		SELECT ` + incidenciaColumns + ` FROM incidencias
+		ORDER BY fecha_apertura DESC, id DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("listando incidencias: %w", err)
+	}
+	defer rows.Close()
+
+	incidencias := []domain.Incidencia{}
+	for rows.Next() {
+		inc, err := scanIncidencia(rows)
+		if err != nil {
+			return nil, fmt.Errorf("leyendo fila de incidencia: %w", err)
+		}
+		incidencias = append(incidencias, inc)
+	}
+	return incidencias, rows.Err()
+}
+
 // Update sobrescribe los campos editables de una incidencia. Si el estado
 // cambia respecto al guardado, deja constancia del cambio con su fecha en
 // incidencia_eventos y ajusta fecha_cierre (se fija al pasar a "cerrada", se

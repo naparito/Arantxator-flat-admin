@@ -1,6 +1,6 @@
 // Package httpapi expone la API HTTP interna que consume la SPA. Inmuebles,
-// Inquilinos, Contratos, Incidencias y Gastos (con reparto y rentabilidad)
-// ya están completos.
+// Inquilinos, Contratos, Incidencias, Gastos (con reparto y rentabilidad) y
+// el Dashboard con el centro de notificaciones ya están completos.
 package httpapi
 
 import (
@@ -23,6 +23,7 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 	gastos := sqlite.NewGastosRepo(db)
 	repartos := sqlite.NewRepartosRepo(db)
 	cobros := sqlite.NewCobrosRepo(db)
+	notificaciones := sqlite.NewNotificacionesRepo(db)
 
 	mux.HandleFunc("GET /api/inmuebles", handleListInmuebles(inmuebles, contratos))
 	mux.HandleFunc("POST /api/inmuebles", handleCreateInmueble(inmuebles))
@@ -75,6 +76,10 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 	mux.HandleFunc("GET /api/inmuebles/{id}/cobros", handleListCobrosInmueble(inmuebles, cobros))
 	mux.HandleFunc("POST /api/inmuebles/{id}/cobros", handleCreateCobroInmueble(inmuebles, cobros))
 	mux.HandleFunc("PUT /api/cobros/{id}", handleUpdateCobro(cobros))
+
+	mux.HandleFunc("GET /api/dashboard/resumen", handleGetDashboardResumen(inmuebles, contratos, gastos, incidencias, cobros, notificaciones))
+	mux.HandleFunc("GET /api/notificaciones", handleListNotificaciones(inmuebles, contratos, gastos, incidencias, notificaciones))
+	mux.HandleFunc("POST /api/notificaciones/{id}/leida", handleMarcarNotificacionLeida(notificaciones))
 }
 
 func handleHealth(db *sql.DB) http.HandlerFunc {

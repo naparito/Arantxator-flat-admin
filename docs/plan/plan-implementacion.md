@@ -20,7 +20,7 @@ Cada hito de módulo se construye siempre **vertical, no por capas**: en el mism
 | 3 | Contratos | `feature/modulo-contratos` | ✅ Hecho — contratos con reglas LAU, vínculo N:N con inquilinos, contrato por habitación y % de ocupación |
 | 4 | Incidencias | `feature/modulo-incidencias` | ✅ Hecho — gestión de incidencias por inmueble con flujo de estados fechado |
 | 5 | Gastos y reparto | `feature/modulo-gastos` | ✅ Hecho — facturas, reparto porcentual versionado, recibos individuales, cobros de renta y rentabilidad neta |
-| 6 | Dashboard y notificaciones | `feature/dashboard-notificaciones` | Resumen agregado + centro de notificaciones real |
+| 6 | Dashboard y notificaciones | `feature/dashboard-notificaciones` | ✅ Hecho — resumen agregado de toda la cartera + centro de notificaciones evaluado en caliente, con aviso-resumen al arrancar |
 
 Hitos 1–6 entregan la v1.0-alpha funcional; el hito 7 es lo que la convierte en algo que un usuario sin conocimientos técnicos puede instalar y usar.
 
@@ -295,7 +295,62 @@ Definir un reparto 33/33/34% para el piso compartido, dar de alta una factura de
 
 ---
 
-## Hito 6 — Dashboard y centro de notificaciones
+## Hito 6 — Dashboard y centro de notificaciones *(hecho)*
+
+> **Cerrado** en `feature/dashboard-notificaciones` (PR hacia `development`).
+> Es el último hito de la v1.0-alpha. Decisiones tomadas al implementar,
+> justificadas en el código:
+> - **Todo es dato derivado en lectura.** No hay tabla de "notificaciones
+>   generadas" ni proceso en segundo plano: cada aviso se evalúa al vuelo
+>   cruzando `ContratosRepo`, `GastosRepo`, `IncidenciasRepo` y `CobrosRepo`
+>   (`internal/domain/notificacion.go`), reutilizando los helpers ya escritos
+>   (`Contrato.EstadoDerivado`, `FechaLimiteDepositoFianza`,
+>   `Gasto.EstadoPagoDerivado`, `EstadoIncidencia.EsFinal`,
+>   `ContratosRepo.OcupacionInmueble`). Los números del resumen
+>   (`GET /api/dashboard/resumen`) se recalculan igual, nunca sobre una cifra
+>   cacheada.
+> - **Migración `0007`**: `notificaciones_leidas` — la única tabla nueva.
+>   Guarda solo qué avisos ha marcado el usuario como leídos, con identidad
+>   determinista `clave = "<tipo>:<entidad_tipo>:<entidad_id>"` (p. ej.
+>   `contrato_por_vencer:contrato:5`) para que "marcar leída" persista entre
+>   reinicios y `POST /api/notificaciones/{id}/leida` reciba ese id estable.
+>   Aplica limpiamente sobre una base de datos nueva.
+> - **Umbrales de severidad, justificados como constantes de dominio:**
+>   `DiasFianzaUrgente = 10` (último tercio del plazo legal de 30 días → una
+>   fianza pendiente con ≤10 días de margen, o ya fuera de plazo, es
+>   *urgente*; con más margen, *aviso*). `DiasFacturaAviso = 30` (una factura
+>   pendiente solo genera aviso si su vencimiento entra en esa ventana o ya
+>   pasó: *vencida* → urgente, *pendiente próxima* → aviso).
+> - **Qué genera notificación:** contrato dentro de la ventana de aviso
+>   (`DiasAvisoVencimiento = 60`; ya vencido → urgente), fianza `pendiente`
+>   no depositada, factura pendiente/vencida, e incidencia en un estado de
+>   trabajo pendiente (`abierta`, `en proceso`, `esperando proveedor`); una
+>   incidencia `resuelta` —trabajo hecho, solo falta cerrar— o `cerrada` no
+>   avisa.
+> - **Persistencia de "leída" cuando la condición desaparece y reaparece:**
+>   la fila está keyed por entidad + tipo y se conserva. Si un contrato se
+>   renueva deja de avisar; si vuelve a entrar en la ventana, la misma
+>   `clave` lo reencuentra leído. Un aviso sobre una entidad genuinamente
+>   nueva (otra factura impagada) tiene otra `entidad_id` → otra clave →
+>   vuelve a contar. El contador del resumen siempre refleja el número real
+>   de condiciones activas, leídas o no.
+> - **Rentabilidad agregada del resumen:** sobre el mes en curso por defecto,
+>   con `?periodo=AAAA-MM` opcional (mismo `periodoMes` que el Hito 5). Suma
+>   ingresos (`cobros_renta`) − gastos (facturas emitidas en el mes) de toda
+>   la cartera; el frontend la pinta tal cual.
+> - **Aviso al arrancar:** un componente-guard (`web/src/components/AvisoArranque.tsx`)
+>   envuelve la pantalla Resumen. Al cargar la SPA consulta
+>   `GET /api/notificaciones`; si hay avisos activos sin leer muestra el
+>   aviso-resumen y no deja ver el dashboard hasta pulsar "Ver el panel".
+>   Sin avisos sin leer, entra directo. Bloquea una vez por arranque (carga
+>   completa de la SPA); navegar por la app luego no lo reinterpone.
+> - **GUI:** la entrada "Resumen" del rail abre ahora el dashboard real
+>   (`/`), con la redirección por defecto y el `path="*"` apuntando ahí; se
+>   añade una entrada "Notificaciones" con contador de avisos sin leer en el
+>   rail (`Sidebar.tsx`), y las pantallas **Resumen** (KPIs reales +
+>   cartera + avisos) y **Centro de notificaciones** (lista con severidad,
+>   "marcar como leída" que actualiza el contador sin recargar), con los
+>   tokens de severidad ya existentes (`--good` / `--warn` / `--critical`).
 
 ### Qué hace este módulo
 El resumen agregado (ocupación, contratos por vencer, gastos pendientes, rentabilidad) y el centro de notificaciones que evalúa reglas sobre los datos reales de los módulos anteriores: contrato por vencer, fianza sin depositar, factura pendiente, incidencia abierta. Al arrancar la aplicación, si hay avisos activos se muestran de inmediato.
