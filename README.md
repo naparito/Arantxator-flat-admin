@@ -41,16 +41,30 @@ nunca sobre una cifra cacheada. Detalle en el
 
 ## Instalar (usuario final)
 
-1. Descarga `Arantxator-Setup.exe` (se genera con `scripts/build.ps1`, ver abajo)
-   y haz doble clic.
-2. Sigue el asistente — sin conexión a internet ni permisos de administrador.
-   Deja marcada la casilla para crear el acceso directo en el escritorio.
-3. Al abrirlo, la aplicación arranca en segundo plano y el navegador se abre solo
-   en `http://127.0.0.1:8080`. Si hay avisos pendientes, verás el aviso-resumen
-   antes del panel.
-4. **Copia de seguridad:** cerrar la app y copiar `arantxator.db` (junto al
-   ejecutable) es la copia completa — datos y documentos incluidos, porque todo
-   vive en ese único fichero SQLite.
+El portátil de destino **no necesita nada preinstalado** (ni Go, ni Node, ni
+permisos de administrador, ni internet) — solo Windows.
+
+1. Descarga `Arantxator-Setup.exe` (~11 MB, un único fichero) desde la
+   [**página de releases**](https://github.com/naparito/Arantxator-flat-admin/releases/latest)
+   ([enlace directo a la v1.0-alpha](https://github.com/naparito/Arantxator-flat-admin/releases/download/v1.0-alpha/Arantxator-Setup.exe)).
+   Llévalo al portátil por USB, correo o la nube si hace falta.
+2. Doble clic. Si Windows SmartScreen avisa (el `.exe` no está firmado):
+   *Más información → Ejecutar de todas formas*.
+3. Sigue el asistente — se instala en tu perfil de usuario
+   (`%LOCALAPPDATA%\Programs\Arantxator Flat Admin`), sin UAC. Deja marcada la
+   casilla para crear el acceso directo en el escritorio.
+4. Abre el acceso directo: la aplicación arranca en segundo plano y el navegador
+   se abre solo en `http://127.0.0.1:8080`. Si hay avisos pendientes, verás el
+   aviso-resumen antes del panel.
+5. **Copia de seguridad:** cerrar la app y copiar `arantxator.db` (en la carpeta
+   de instalación) es la copia completa — datos y documentos incluidos, porque
+   todo vive en ese único fichero SQLite.
+6. **Desinstalar:** Configuración de Windows → Aplicaciones → Arantxator Flat
+   Admin → Desinstalar (deja `arantxator.db` a propósito).
+
+> Para generar tú mismo un instalador desde el código (p. ej. para una versión
+> nueva), ver [Compilar y ejecutar](#compilar-y-ejecutar-desarrollo) más abajo:
+> `scripts/build.ps1` produce `dist/Arantxator-Setup.exe`.
 
 Detalle de instalación, desinstalación y solución de problemas:
 [`docs/despliegue/instalacion-despliegue.md`](docs/despliegue/instalacion-despliegue.md).
