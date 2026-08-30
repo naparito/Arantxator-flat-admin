@@ -15,7 +15,7 @@ Cada hito de módulo se construye siempre **vertical, no por capas**: en el mism
 |---|---|---|---|
 | 0 | Fundaciones | `feature/scaffold-inicial` | ✅ Hecho — esquema SQLite, servidor Go, GUI embebida placeholder |
 | 1 | Inmuebles + bootstrap SPA | `feature/modulo-inmuebles` | ✅ Hecho — alta/edición de inmuebles (incl. compartidos por habitaciones), documentos, primera pantalla real |
-| 7 | Empaquetado e instalador | `feature/instalador` | ✅ Hecho — adelantado antes del Hito 2 (ver nota abajo). `Arantxator-Setup.exe` autoinstalable |
+| 7 | Empaquetado e instalador | `feature/instalador` | ✅ Hecho — adelantado antes del Hito 2 (ver nota abajo). `Arantxator-Setup.exe` autoinstalable, publicado como asset de la [release](https://github.com/naparito/Arantxator-flat-admin/releases/tag/v1.0-alpha) |
 | 2 | Inquilinos | `feature/modulo-inquilinos` | ✅ Hecho — alta/edición de inquilinos, documentos, asignación de ocupante de habitación |
 | 3 | Contratos | `feature/modulo-contratos` | ✅ Hecho — contratos con reglas LAU, vínculo N:N con inquilinos, contrato por habitación y % de ocupación |
 | 4 | Incidencias | `feature/modulo-incidencias` | ✅ Hecho — gestión de incidencias por inmueble con flujo de estados fechado |
@@ -26,9 +26,14 @@ Hitos 1–6 entregan la v1.0-alpha funcional; el hito 7 es lo que la convierte e
 
 > **Release v1.0-alpha (30 ago 2026):** cerrados los hitos 0–7 y el manual
 > funcional (`docs/manual/`), `development` se ha promovido a `main` con el tag
-> `v1.0-alpha`. `development` sigue siendo la rama de trabajo. Único punto abierto
-> del plan, no bloqueante: la prueba del instalador en una máquina Windows sin
-> herramientas de desarrollo (§"Preguntas abiertas").
+> `v1.0-alpha` y una GitHub Release. El instalador `Arantxator-Setup.exe`
+> (~11 MB, regenerado con `scripts/build.ps1` sobre el árbol de la release) va
+> **adjunto como asset de esa release** —`dist/` sigue en `.gitignore`, no se
+> versiona—, descargable en
+> `releases/download/v1.0-alpha/Arantxator-Setup.exe`. `development` sigue siendo
+> la rama de trabajo. Único punto abierto del plan, no bloqueante: la prueba del
+> instalador en una máquina Windows sin herramientas de desarrollo
+> (§"Preguntas abiertas").
 
 > **Nota de secuencia (23 ago 2026):** el Hito 7 se ha adelantado a petición
 > del propietario del proyecto — completar el empaquetado con el módulo de
@@ -397,6 +402,7 @@ No añade funcionalidad de producto: convierte lo construido en algo que una per
 - Script de Inno Setup en `installer/` que empaqueta el ejecutable, crea el acceso directo en escritorio/menú inicio, y no requiere conexión a internet.
 - Icono de aplicación: el isotipo de casa del rail de navegación, generado en `installer/icon.ico` con `scripts/generate-icon.ps1`, e incrustado en el propio `.exe` (icono + versión) con `scripts/generate-versioninfo.ps1` (`goversioninfo`), versionado como `cmd/arantxator/resource_windows_*.syso` para que un `go build` normal ya lo incluya sin herramientas extra.
 - Fallback de rutas en `internal/webui/embed.go` (`webui.Handler()`): sin él, abrir o recargar una ruta interna de la SPA (ej. `/inmuebles/5`) daba 404 en el instalado, igual que ya daba en desarrollo — necesario para que el instalador sea usable de verdad, no solo para que compile.
+- Publicación: `dist/` está en `.gitignore`, así que el `.exe` no se versiona; se sube como asset de la GitHub Release de cada versión con `gh release upload <tag> dist/Arantxator-Setup.exe` (ver [`docs/despliegue/instalacion-despliegue.md` §3.1](../despliegue/instalacion-despliegue.md)). La v1.0-alpha ya lo tiene publicado.
 - Prueba de instalación en una máquina Windows limpia (sin Go/Node instalados) — **pendiente**, ver más abajo.
 
 ### Criterio de aceptación
@@ -404,6 +410,7 @@ Instalar `Arantxator-Setup.exe` en un Windows sin herramientas de desarrollo, y 
 
 ### Batería de pruebas
 
+- El instalador está publicado y es descargable: `Arantxator-Setup.exe` de la v1.0-alpha, regenerado con `scripts/build.ps1` sobre el árbol de la release, adjunto a la [GitHub Release](https://github.com/naparito/Arantxator-flat-admin/releases/tag/v1.0-alpha). ✅ Verificado: el binario que va dentro responde `/api/health` `ok` y sirve todos los módulos.
 - Instalar en una máquina limpia (sin Go ni Node) → arranca correctamente. **Pendiente**: verificado en esta misma máquina de desarrollo (instalación real de usuario, sin privilegios de administrador, sin usar `go run`/`npm run dev`), pero no en una máquina sin ningún SDK instalado — no hay una VM/equipo limpio disponible en este entorno para esa prueba concreta.
 - Instalar sin conexión a internet → funciona igual (no hay nada que descargar). ✅ Verificado: Inno Setup empaqueta el `.exe` dentro del propio instalador, sin llamadas de red.
 - Desinstalar desde el Panel de control → se elimina limpiamente, sin dejar procesos colgados. ✅ Verificado (instalación/desinstalación silenciosa con log). Nota: deja `arantxator.db` a propósito (ver documentación de despliegue) — es la protección de datos, no un residuo de limpieza incompleta.
@@ -498,8 +505,8 @@ fichero.
 
 Detalle completo (con la verificación realizada): [`docs/despliegue/instalacion-despliegue.md`](../despliegue/instalacion-despliegue.md).
 
-1. Descargar `Arantxator-Setup.exe`.
-2. Doble clic y seguir el asistente — no requiere conexión a internet, porque no hay nada que descargar: todo va embebido en el instalador.
+1. Descargar `Arantxator-Setup.exe` de la [página de releases](https://github.com/naparito/Arantxator-flat-admin/releases/latest) ([enlace directo v1.0-alpha](https://github.com/naparito/Arantxator-flat-admin/releases/download/v1.0-alpha/Arantxator-Setup.exe)). Para un equipo sin acceso a GitHub, copiar ese único fichero por USB/red/correo.
+2. Doble clic y seguir el asistente — no requiere conexión a internet, porque no hay nada que descargar: todo va embebido en el instalador. Si SmartScreen avisa (el `.exe` no está firmado): *Más información → Ejecutar de todas formas*.
 3. Se crea un acceso directo en el escritorio.
 4. Al abrirlo, la aplicación arranca en segundo plano y el navegador se abre solo en la pantalla principal — sin terminales ni puertos que configurar.
 5. **Copia de seguridad:** copiar el fichero `arantxator.db` (junto al ejecutable) es la copia completa — datos y documentos incluidos.
@@ -509,7 +516,7 @@ Detalle completo (con la verificación realizada): [`docs/despliegue/instalacion
 
 ## Preguntas abiertas de este plan
 
-1. **Prueba en máquina Windows limpia** del instalador (sin Go/Node/Git) — pendiente, no hay VM/equipo disponible en este entorno de desarrollo para esa prueba concreta. Lo verificado hasta ahora (instalación de usuario real sin privilegios de administrador) da confianza razonable, pero no sustituye esa prueba.
+1. **Prueba en máquina Windows limpia** del instalador (sin Go/Node/Git) — pendiente, no hay VM/equipo disponible en este entorno de desarrollo para esa prueba concreta. Lo verificado hasta ahora (instalación de usuario real sin privilegios de administrador) da confianza razonable, pero no sustituye esa prueba. El instalador de la v1.0-alpha ya está publicado y descargable en la [GitHub Release](https://github.com/naparito/Arantxator-flat-admin/releases/tag/v1.0-alpha), así que la prueba solo requiere descargarlo y ejecutarlo en ese equipo.
 
 Resueltas:
 
