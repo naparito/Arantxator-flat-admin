@@ -1,6 +1,6 @@
-// Package httpapi expone la API HTTP interna que consume la SPA. Inmuebles e
-// Inquilinos ya están completos; Contratos, Gastos e Incidencias se añaden
-// en iteraciones posteriores.
+// Package httpapi expone la API HTTP interna que consume la SPA. Inmuebles,
+// Inquilinos, Contratos e Incidencias ya están completos; Gastos se añade en
+// una iteración posterior.
 package httpapi
 
 import (
@@ -19,6 +19,7 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 	habitaciones := sqlite.NewHabitacionesRepo(db)
 	inquilinos := sqlite.NewInquilinosRepo(db)
 	contratos := sqlite.NewContratosRepo(db)
+	incidencias := sqlite.NewIncidenciasRepo(db)
 
 	mux.HandleFunc("GET /api/inmuebles", handleListInmuebles(inmuebles, contratos))
 	mux.HandleFunc("POST /api/inmuebles", handleCreateInmueble(inmuebles))
@@ -48,6 +49,13 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 	mux.HandleFunc("PUT /api/contratos/{id}", handleUpdateContrato(contratos, inmuebles, habitaciones, inquilinos))
 	mux.HandleFunc("POST /api/contratos/{id}/documentos", handleUploadDocumentoContrato(contratos, documentos))
 	mux.HandleFunc("GET /api/contratos/{id}/documentos", handleListDocumentosContrato(contratos, documentos))
+
+	mux.HandleFunc("GET /api/inmuebles/{id}/incidencias", handleListIncidenciasInmueble(inmuebles, incidencias))
+	mux.HandleFunc("POST /api/inmuebles/{id}/incidencias", handleCreateIncidenciaInmueble(inmuebles, incidencias))
+	mux.HandleFunc("GET /api/incidencias/{id}", handleGetIncidencia(incidencias))
+	mux.HandleFunc("PUT /api/incidencias/{id}", handleUpdateIncidencia(incidencias))
+	mux.HandleFunc("POST /api/incidencias/{id}/documentos", handleUploadDocumentoIncidencia(incidencias, documentos))
+	mux.HandleFunc("GET /api/incidencias/{id}/documentos", handleListDocumentosIncidencia(incidencias, documentos))
 }
 
 func handleHealth(db *sql.DB) http.HandlerFunc {

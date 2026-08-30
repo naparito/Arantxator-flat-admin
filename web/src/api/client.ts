@@ -4,6 +4,8 @@ import type {
   Documento,
   Habitacion,
   HabitacionInput,
+  Incidencia,
+  IncidenciaInput,
   Inmueble,
   InmuebleInput,
   Inquilino,
@@ -82,6 +84,17 @@ export const api = {
     const form = new FormData()
     form.append('archivo', file)
     return request<Documento>(`/contratos/${contratoId}/documentos`, { method: 'POST', body: form })
+  },
+  listIncidencias: (inmuebleId: number) => request<Incidencia[]>(`/inmuebles/${inmuebleId}/incidencias`),
+  createIncidencia: (inmuebleId: number, data: IncidenciaInput) =>
+    request<Incidencia>(`/inmuebles/${inmuebleId}/incidencias`, { method: 'POST', body: JSON.stringify(data) }),
+  updateIncidencia: (id: number, data: IncidenciaInput) =>
+    request<Incidencia>(`/incidencias/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  listDocumentosIncidencia: (incidenciaId: number) => request<Documento[]>(`/incidencias/${incidenciaId}/documentos`),
+  uploadDocumentoIncidencia: (incidenciaId: number, file: File) => {
+    const form = new FormData()
+    form.append('archivo', file)
+    return request<Documento>(`/incidencias/${incidenciaId}/documentos`, { method: 'POST', body: form })
   },
 }
 
