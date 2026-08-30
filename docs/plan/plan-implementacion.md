@@ -24,6 +24,12 @@ Cada hito de módulo se construye siempre **vertical, no por capas**: en el mism
 
 Hitos 1–6 entregan la v1.0-alpha funcional; el hito 7 es lo que la convierte en algo que un usuario sin conocimientos técnicos puede instalar y usar.
 
+> **Release v1.0-alpha (30 ago 2026):** cerrados los hitos 0–7 y el manual
+> funcional (`docs/manual/`), `development` se ha promovido a `main` con el tag
+> `v1.0-alpha`. `development` sigue siendo la rama de trabajo. Único punto abierto
+> del plan, no bloqueante: la prueba del instalador en una máquina Windows sin
+> herramientas de desarrollo (§"Preguntas abiertas").
+
 > **Nota de secuencia (23 ago 2026):** el Hito 7 se ha adelantado a petición
 > del propietario del proyecto — completar el empaquetado con el módulo de
 > Inmuebles ya construido, en vez de esperar a que estén cerrados los hitos
