@@ -1,6 +1,6 @@
 // Package httpapi expone la API HTTP interna que consume la SPA. Inmuebles,
-// Inquilinos, Contratos e Incidencias ya están completos; Gastos se añade en
-// una iteración posterior.
+// Inquilinos, Contratos, Incidencias y Gastos (con reparto y rentabilidad)
+// ya están completos.
 package httpapi
 
 import (
@@ -20,6 +20,9 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 	inquilinos := sqlite.NewInquilinosRepo(db)
 	contratos := sqlite.NewContratosRepo(db)
 	incidencias := sqlite.NewIncidenciasRepo(db)
+	gastos := sqlite.NewGastosRepo(db)
+	repartos := sqlite.NewRepartosRepo(db)
+	cobros := sqlite.NewCobrosRepo(db)
 
 	mux.HandleFunc("GET /api/inmuebles", handleListInmuebles(inmuebles, contratos))
 	mux.HandleFunc("POST /api/inmuebles", handleCreateInmueble(inmuebles))
@@ -56,6 +59,22 @@ func RegisterRoutes(mux *http.ServeMux, db *sql.DB) {
 	mux.HandleFunc("PUT /api/incidencias/{id}", handleUpdateIncidencia(incidencias))
 	mux.HandleFunc("POST /api/incidencias/{id}/documentos", handleUploadDocumentoIncidencia(incidencias, documentos))
 	mux.HandleFunc("GET /api/incidencias/{id}/documentos", handleListDocumentosIncidencia(incidencias, documentos))
+
+	mux.HandleFunc("GET /api/inmuebles/{id}/gastos", handleListGastosInmueble(inmuebles, gastos))
+	mux.HandleFunc("POST /api/inmuebles/{id}/gastos", handleCreateGastoInmueble(inmuebles, gastos))
+	mux.HandleFunc("GET /api/gastos/{id}", handleGetGasto(gastos))
+	mux.HandleFunc("PUT /api/gastos/{id}", handleUpdateGasto(gastos))
+	mux.HandleFunc("GET /api/gastos/{id}/recibo", handleGetReciboGasto(gastos, repartos))
+	mux.HandleFunc("POST /api/gastos/{id}/documentos", handleUploadDocumentoGasto(gastos, documentos))
+	mux.HandleFunc("GET /api/gastos/{id}/documentos", handleListDocumentosGasto(gastos, documentos))
+
+	mux.HandleFunc("GET /api/inmuebles/{id}/reparto", handleGetRepartoInmueble(inmuebles, repartos))
+	mux.HandleFunc("POST /api/inmuebles/{id}/reparto", handleCreateRepartoInmueble(inmuebles, repartos, inquilinos))
+
+	mux.HandleFunc("GET /api/inmuebles/{id}/rentabilidad", handleGetRentabilidadInmueble(inmuebles, gastos, cobros))
+	mux.HandleFunc("GET /api/inmuebles/{id}/cobros", handleListCobrosInmueble(inmuebles, cobros))
+	mux.HandleFunc("POST /api/inmuebles/{id}/cobros", handleCreateCobroInmueble(inmuebles, cobros))
+	mux.HandleFunc("PUT /api/cobros/{id}", handleUpdateCobro(cobros))
 }
 
 func handleHealth(db *sql.DB) http.HandlerFunc {
