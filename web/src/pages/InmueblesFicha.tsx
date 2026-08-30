@@ -1,9 +1,34 @@
 import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
-import type { Documento, Habitacion, HabitacionInput, Inmueble, Inquilino, Suministro, Suministros } from '../api/types'
+import {
+  CATEGORIAS_INCIDENCIA,
+  FLUJO_INCIDENCIA,
+  type Documento,
+  type EstadoIncidencia,
+  type Habitacion,
+  type HabitacionInput,
+  type Incidencia,
+  type IncidenciaInput,
+  incidenciaAbierta,
+  incidenciaVacia,
+  type Inmueble,
+  type Inquilino,
+  type Suministro,
+  type Suministros,
+} from '../api/types'
 import { EstadoPill } from '../components/EstadoPill'
 import { IconCasa, IconChevronRight, IconDoc } from '../components/icons'
+import {
+  CATEGORIA_LABEL,
+  ESTADO_LABEL,
+  formatCoste,
+  IncidenciaEstadoPill,
+  ORIGEN_LABEL,
+  PrioridadPill,
+  fechaHora,
+  tiempoRelativo,
+} from './incidenciasUtil'
 
 type Tab = 'datos' | 'documentacion' | 'suministros' | 'habitaciones' | 'incidencias'
 
@@ -20,6 +45,7 @@ export function InmueblesFicha() {
   const navigate = useNavigate()
 
   const [inmueble, setInmueble] = useState<Inmueble | null>(null)
+  const [incidencias, setIncidencias] = useState<Incidencia[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('datos')
 
@@ -29,9 +55,17 @@ export function InmueblesFicha() {
       .getInmueble(inmuebleId)
       .then(setInmueble)
       .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo cargar el inmueble'))
+    // Se cargan también aquí (no solo dentro del tab) para que el contador
+    // del tab Incidencias tenga un número real desde el primer render.
+    api
+      .listIncidencias(inmuebleId)
+      .then(setIncidencias)
+      .catch(() => setIncidencias([]))
   }
 
   useEffect(cargar, [inmuebleId])
+
+  const numAbiertas = (incidencias ?? []).filter(incidenciaAbierta).length
 
   if (error) {
     return (
@@ -81,6 +115,9 @@ export function InmueblesFicha() {
           <button type="button" className="btn-ghost" onClick={() => navigate(`/inmuebles/${inmueble.id}/editar`)}>
             Editar
           </button>
+          <button type="button" className="btn-primary" onClick={() => setTab('incidencias')}>
+            + Incidencia
+          </button>
         </div>
       </div>
 
@@ -99,8 +136,8 @@ export function InmueblesFicha() {
             Habitaciones
           </button>
         )}
-        <button type="button" className="tab" disabled title="Disponible en el hito 4">
-          Incidencias <span className="badge">0</span>
+        <button type="button" className={`tab ${tab === 'incidencias' ? 'active' : ''}`} onClick={() => setTab('incidencias')}>
+          Incidencias <span className={`badge ${numAbiertas > 0 ? 'activo' : ''}`}>{numAbiertas}</span>
         </button>
       </div>
 
@@ -109,6 +146,9 @@ export function InmueblesFicha() {
         {tab === 'documentacion' && <Documentacion inmuebleId={inmueble.id} />}
         {tab === 'suministros' && <SuministrosTab inmueble={inmueble} onGuardado={setInmueble} />}
         {tab === 'habitaciones' && inmueble.compartido && <HabitacionesTab inmuebleId={inmueble.id} />}
+        {tab === 'incidencias' && (
+          <IncidenciasTab inmuebleId={inmueble.id} incidencias={incidencias} onChange={setIncidencias} />
+        )}
       </div>
     </>
   )
@@ -482,6 +522,387 @@ function HabitacionesTab({ inmuebleId }: { inmuebleId: number }) {
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+// targetsPermitidos son los estados a los que se puede mover una incidencia
+// desde su estado actual: el siguiente paso del flujo y, si está resuelta o
+// cerrada, la reapertura a "en proceso". El backend valida lo mismo.
+function targetsPermitidos(estado: EstadoIncidencia): EstadoIncidencia[] {
+  const idx = FLUJO_INCIDENCIA.indexOf(estado)
+  const opciones: EstadoIncidencia[] = []
+  if (idx >= 0 && idx < FLUJO_INCIDENCIA.length - 1) opciones.push(FLUJO_INCIDENCIA[idx + 1])
+  if (estado === 'resuelta' || estado === 'cerrada') opciones.push('en_proceso')
+  return opciones
+}
+
+function incidenciaToInput(i: Incidencia): IncidenciaInput {
+  return {
+    titulo: i.titulo,
+    descripcion: i.descripcion,
+    categoria: i.categoria,
+    prioridad: i.prioridad,
+    origen: i.origen,
+    proveedorNombre: i.proveedorNombre,
+    proveedorContacto: i.proveedorContacto,
+    coste: i.coste,
+    costeACargoDe: i.costeACargoDe,
+  }
+}
+
+function IncidenciasTab({
+  inmuebleId,
+  incidencias,
+  onChange,
+}: {
+  inmuebleId: number
+  incidencias: Incidencia[] | null
+  onChange: (lista: Incidencia[]) => void
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const [nueva, setNueva] = useState<IncidenciaInput>(incidenciaVacia())
+  const [creando, setCreando] = useState(false)
+
+  const lista = incidencias ?? []
+  const abiertas = lista.filter((i) => i.estado !== 'cerrada')
+  const cerradas = lista.filter((i) => i.estado === 'cerrada')
+
+  function reemplazar(actualizada: Incidencia) {
+    onChange(lista.map((i) => (i.id === actualizada.id ? actualizada : i)))
+  }
+
+  async function onCrear(e: FormEvent) {
+    e.preventDefault()
+    if (!nueva.titulo.trim()) return
+    setCreando(true)
+    setError(null)
+    try {
+      const creada = await api.createIncidencia(inmuebleId, nueva)
+      onChange([creada, ...lista])
+      setNueva(incidenciaVacia())
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo crear la incidencia')
+    } finally {
+      setCreando(false)
+    }
+  }
+
+  return (
+    <div className="tab-content">
+      {error && <div className="form-error">{error}</div>}
+
+      {incidencias === null && <p>Cargando incidencias…</p>}
+
+      {incidencias !== null && lista.length === 0 && (
+        <div className="empty-state">Todavía no hay incidencias en este inmueble. Reporta la primera abajo.</div>
+      )}
+
+      {abiertas.length > 0 && <div className="section-title">Incidencias abiertas</div>}
+      {abiertas.map((inc) => (
+        <IncidenciaCard key={inc.id} incidencia={inc} onChange={reemplazar} onError={setError} />
+      ))}
+
+      {cerradas.length > 0 && <div className="section-title">Cerradas</div>}
+      {cerradas.map((inc) => (
+        <IncidenciaCard key={inc.id} incidencia={inc} onChange={reemplazar} onError={setError} />
+      ))}
+
+      <form className="form" onSubmit={onCrear} style={{ maxWidth: 'none' }}>
+        <div className="section-title">Nueva incidencia</div>
+        <div className="form-grid">
+          <div className="field span-2">
+            <label htmlFor="inc-titulo">Título *</label>
+            <input
+              id="inc-titulo"
+              value={nueva.titulo}
+              onChange={(e) => setNueva((p) => ({ ...p, titulo: e.target.value }))}
+              placeholder="Ej. Fuga en el grifo de la cocina"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="inc-categoria">Categoría *</label>
+            <select
+              id="inc-categoria"
+              value={nueva.categoria}
+              onChange={(e) => setNueva((p) => ({ ...p, categoria: e.target.value }))}
+            >
+              {CATEGORIAS_INCIDENCIA.map((c) => (
+                <option key={c} value={c}>
+                  {CATEGORIA_LABEL[c] ?? c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="inc-prioridad">Prioridad</label>
+            <select
+              id="inc-prioridad"
+              value={nueva.prioridad}
+              onChange={(e) => setNueva((p) => ({ ...p, prioridad: e.target.value as IncidenciaInput['prioridad'] }))}
+            >
+              <option value="baja">Baja</option>
+              <option value="media">Media</option>
+              <option value="alta">Alta</option>
+              <option value="urgente">Urgente</option>
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="inc-origen">Origen</label>
+            <select
+              id="inc-origen"
+              value={nueva.origen}
+              onChange={(e) => setNueva((p) => ({ ...p, origen: e.target.value as IncidenciaInput['origen'] }))}
+            >
+              <option value="">Sin especificar</option>
+              <option value="inquilino">Reportada por el inquilino</option>
+              <option value="propietario">Detectada por el propietario/gestor</option>
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="inc-proveedor">Proveedor asignado</label>
+            <input
+              id="inc-proveedor"
+              value={nueva.proveedorNombre}
+              onChange={(e) => setNueva((p) => ({ ...p, proveedorNombre: e.target.value }))}
+              placeholder="Sin asignar"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="inc-proveedor-contacto">Contacto del proveedor</label>
+            <input
+              id="inc-proveedor-contacto"
+              value={nueva.proveedorContacto}
+              onChange={(e) => setNueva((p) => ({ ...p, proveedorContacto: e.target.value }))}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="inc-coste">Coste (€)</label>
+            <input
+              id="inc-coste"
+              type="number"
+              min={0}
+              step="0.01"
+              value={nueva.coste || ''}
+              onChange={(e) => setNueva((p) => ({ ...p, coste: Number(e.target.value) }))}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="inc-cargo">Coste a cargo de</label>
+            <select
+              id="inc-cargo"
+              value={nueva.costeACargoDe}
+              onChange={(e) => setNueva((p) => ({ ...p, costeACargoDe: e.target.value as IncidenciaInput['costeACargoDe'] }))}
+            >
+              <option value="">Por determinar</option>
+              <option value="propietario">Propietario</option>
+              <option value="inquilino">Inquilino</option>
+            </select>
+          </div>
+          <div className="field span-2">
+            <label htmlFor="inc-desc">Descripción</label>
+            <input
+              id="inc-desc"
+              value={nueva.descripcion}
+              onChange={(e) => setNueva((p) => ({ ...p, descripcion: e.target.value }))}
+            />
+          </div>
+        </div>
+        <div className="form-actions">
+          <button type="submit" className="btn-primary" disabled={!nueva.titulo.trim() || creando}>
+            {creando ? 'Reportando…' : 'Reportar incidencia'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function IncidenciaCard({
+  incidencia,
+  onChange,
+  onError,
+}: {
+  incidencia: Incidencia
+  onChange: (i: Incidencia) => void
+  onError: (msg: string | null) => void
+}) {
+  const [guardando, setGuardando] = useState(false)
+  const [comentario, setComentario] = useState('')
+  const [verHistorial, setVerHistorial] = useState(false)
+  const [subiendo, setSubiendo] = useState(false)
+  const [documentos, setDocumentos] = useState<Documento[] | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    api
+      .listDocumentosIncidencia(incidencia.id)
+      .then(setDocumentos)
+      .catch(() => setDocumentos([]))
+  }, [incidencia.id])
+
+  async function cambiarEstado(estado: EstadoIncidencia) {
+    setGuardando(true)
+    onError(null)
+    try {
+      const actualizada = await api.updateIncidencia(incidencia.id, {
+        ...incidenciaToInput(incidencia),
+        estado,
+        comentario: comentario.trim() || undefined,
+      })
+      onChange(actualizada)
+      setComentario('')
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : 'No se pudo cambiar el estado')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  async function soloComentar() {
+    if (!comentario.trim()) return
+    setGuardando(true)
+    onError(null)
+    try {
+      const actualizada = await api.updateIncidencia(incidencia.id, {
+        ...incidenciaToInput(incidencia),
+        comentario: comentario.trim(),
+      })
+      onChange(actualizada)
+      setComentario('')
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : 'No se pudo guardar el comentario')
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  async function onFileSelected(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setSubiendo(true)
+    onError(null)
+    try {
+      const doc = await api.uploadDocumentoIncidencia(incidencia.id, file)
+      setDocumentos((prev) => [doc, ...(prev ?? [])])
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : 'No se pudo subir la foto')
+    } finally {
+      setSubiendo(false)
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  const numFotos = documentos?.length ?? 0
+  const opciones = targetsPermitidos(incidencia.estado)
+  const inputId = `inc-foto-${incidencia.id}`
+
+  return (
+    <div className="inc-card">
+      <div className="inc-head">
+        <div className="inc-icon">
+          <IconCasa size={18} />
+        </div>
+        <div>
+          <div className="inc-title">{incidencia.titulo}</div>
+          <div className="inc-meta">
+            {CATEGORIA_LABEL[incidencia.categoria] ?? incidencia.categoria}
+            {incidencia.origen ? ` · ${ORIGEN_LABEL[incidencia.origen]}` : ''} · {tiempoRelativo(incidencia.fechaApertura)}
+          </div>
+        </div>
+        <div className="inc-pills">
+          <PrioridadPill prioridad={incidencia.prioridad} />
+          <IncidenciaEstadoPill estado={incidencia.estado} />
+        </div>
+      </div>
+
+      {incidencia.descripcion && <div className="inc-desc">{incidencia.descripcion}</div>}
+
+      <div className="inc-foot">
+        <div className="item">{incidencia.proveedorNombre || 'Sin asignar'}</div>
+        {numFotos > 0 && (
+          <div className="item">
+            {numFotos} foto{numFotos === 1 ? '' : 's'}
+          </div>
+        )}
+        <div className="cost">{formatCoste(incidencia.coste, incidencia.costeACargoDe)}</div>
+      </div>
+
+      <div className="inc-actions">
+        <label htmlFor={`inc-estado-${incidencia.id}`} style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-muted)' }}>
+          Estado
+        </label>
+        <select
+          id={`inc-estado-${incidencia.id}`}
+          aria-label={`Estado de ${incidencia.titulo}`}
+          value={incidencia.estado}
+          disabled={guardando || opciones.length === 0}
+          onChange={(e) => {
+            if (e.target.value !== incidencia.estado) cambiarEstado(e.target.value as EstadoIncidencia)
+          }}
+        >
+          <option value={incidencia.estado}>{ESTADO_LABEL[incidencia.estado]}</option>
+          {opciones.map((o) => (
+            <option key={o} value={o}>
+              → {ESTADO_LABEL[o]}
+            </option>
+          ))}
+        </select>
+
+        <input
+          value={comentario}
+          onChange={(e) => setComentario(e.target.value)}
+          placeholder="Comentario de seguimiento…"
+          aria-label={`Comentario de ${incidencia.titulo}`}
+          style={{
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            padding: '6px 10px',
+            fontSize: 12.5,
+            fontFamily: 'inherit',
+            flex: 1,
+            minWidth: 160,
+          }}
+        />
+        <button type="button" className="btn-ghost" disabled={guardando || !comentario.trim()} onClick={soloComentar}>
+          Comentar
+        </button>
+
+        <label className="btn-ghost" htmlFor={inputId} style={{ cursor: 'pointer' }}>
+          {subiendo ? 'Subiendo…' : 'Adjuntar foto'}
+        </label>
+        <input id={inputId} ref={inputRef} type="file" onChange={onFileSelected} disabled={subiendo} style={{ display: 'none' }} />
+
+        <button type="button" className="btn-ghost" onClick={() => setVerHistorial((v) => !v)}>
+          {verHistorial ? 'Ocultar historial' : `Historial (${incidencia.eventos.length})`}
+        </button>
+      </div>
+
+      {verHistorial && (
+        <div className="inc-hist">
+          {incidencia.eventos.map((ev) => (
+            <div key={ev.id} className="ev">
+              <span className="when">{fechaHora(ev.creadoEn)}</span>
+              <span>
+                {ev.tipo === 'alta' && 'Incidencia abierta'}
+                {ev.tipo === 'cambio_estado' &&
+                  `Estado: ${ESTADO_LABEL[ev.estadoAnterior as EstadoIncidencia]} → ${ESTADO_LABEL[ev.estadoNuevo as EstadoIncidencia]}`}
+                {ev.tipo === 'comentario' && ev.comentario}
+              </span>
+            </div>
+          ))}
+          {documentos?.map((d) => (
+            <div key={`doc-${d.id}`} className="ev">
+              <span className="when">{fechaHora(d.subidoEn)}</span>
+              <span>
+                <a href={api.documentoUrl(d.id)} target="_blank" rel="noreferrer">
+                  {d.nombreArchivo}
+                </a>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { api } from '../api/client'
-import type { Inmueble } from '../api/types'
+import type { Incidencia, Inmueble } from '../api/types'
 import { InmueblesFicha } from './InmueblesFicha'
 
 vi.mock('../api/client', () => ({
@@ -18,6 +18,13 @@ vi.mock('../api/client', () => ({
     deleteHabitacion: vi.fn(),
     listInquilinos: vi.fn(),
     asignarOcupante: vi.fn(),
+    // Por defecto sin incidencias: así los tests de otros tabs no revientan
+    // al montar la ficha (que las carga para el contador del tab).
+    listIncidencias: vi.fn(() => Promise.resolve([])),
+    createIncidencia: vi.fn(),
+    updateIncidencia: vi.fn(),
+    listDocumentosIncidencia: vi.fn(() => Promise.resolve([])),
+    uploadDocumentoIncidencia: vi.fn(),
   },
   ApiError: class ApiError extends Error {},
 }))
@@ -184,5 +191,99 @@ describe('InmueblesFicha — Habitaciones', () => {
 
     await userEvent.selectOptions(selectorHab1, '1')
     expect(api.asignarOcupante).toHaveBeenCalledWith(10, 1)
+  })
+})
+
+const INCIDENCIA_BASE: Incidencia = {
+  id: 50,
+  inmuebleId: 1,
+  titulo: 'Fuga en el grifo de la cocina',
+  descripcion: 'Gotea de forma continua bajo el fregadero.',
+  categoria: 'fontaneria',
+  prioridad: 'alta',
+  origen: 'inquilino',
+  estado: 'en_proceso',
+  proveedorNombre: 'Fontanería Hermanos Ruiz',
+  proveedorContacto: '',
+  coste: 85,
+  costeACargoDe: 'propietario',
+  fechaApertura: new Date().toISOString(),
+  fechaCierre: null,
+  eventos: [
+    { id: 1, incidenciaId: 50, tipo: 'alta', estadoNuevo: 'abierta', creadoEn: new Date().toISOString() },
+    {
+      id: 2,
+      incidenciaId: 50,
+      tipo: 'cambio_estado',
+      estadoAnterior: 'abierta',
+      estadoNuevo: 'en_proceso',
+      creadoEn: new Date().toISOString(),
+    },
+  ],
+  creadoEn: '',
+  actualizadoEn: '',
+}
+
+describe('InmueblesFicha — Incidencias', () => {
+  beforeEach(() => {
+    vi.mocked(api.getInmueble).mockReset()
+    vi.mocked(api.listDocumentos).mockReset()
+    vi.mocked(api.listIncidencias).mockReset()
+    vi.mocked(api.createIncidencia).mockReset()
+    vi.mocked(api.updateIncidencia).mockReset()
+    vi.mocked(api.listDocumentosIncidencia).mockReset().mockResolvedValue([])
+  })
+
+  it('el contador del tab se actualiza al crear una incidencia, sin recargar', async () => {
+    vi.mocked(api.getInmueble).mockResolvedValue(INMUEBLE_BASE)
+    vi.mocked(api.listDocumentos).mockResolvedValue([])
+    vi.mocked(api.listIncidencias).mockResolvedValue([])
+    vi.mocked(api.createIncidencia).mockResolvedValue({ ...INCIDENCIA_BASE, id: 99, estado: 'abierta' })
+
+    renderFicha()
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: /bravo murillo/i })).toBeInTheDocument())
+    const tabIncidencias = screen.getByRole('button', { name: /incidencias/i })
+    expect(tabIncidencias).toHaveTextContent('0')
+
+    await userEvent.click(tabIncidencias)
+    await userEvent.type(screen.getByLabelText(/título/i), 'Persiana atascada')
+    await userEvent.click(screen.getByRole('button', { name: /reportar incidencia/i }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /incidencias/i })).toHaveTextContent('1'))
+    expect(api.createIncidencia).toHaveBeenCalledWith(1, expect.objectContaining({ titulo: 'Persiana atascada' }))
+  })
+
+  it('el contador baja al cerrar una incidencia, sin recargar', async () => {
+    vi.mocked(api.getInmueble).mockResolvedValue(INMUEBLE_BASE)
+    vi.mocked(api.listDocumentos).mockResolvedValue([])
+    vi.mocked(api.listIncidencias).mockResolvedValue([{ ...INCIDENCIA_BASE, estado: 'resuelta' }])
+    vi.mocked(api.updateIncidencia).mockResolvedValue({ ...INCIDENCIA_BASE, estado: 'cerrada', fechaCierre: new Date().toISOString() })
+
+    renderFicha()
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /incidencias/i })).toHaveTextContent('1'))
+    await userEvent.click(screen.getByRole('button', { name: /incidencias/i }))
+
+    const selectEstado = await screen.findByLabelText(/estado de fuga en el grifo/i)
+    await userEvent.selectOptions(selectEstado, 'cerrada')
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /incidencias/i })).toHaveTextContent('0'))
+    expect(api.updateIncidencia).toHaveBeenCalledWith(50, expect.objectContaining({ estado: 'cerrada' }))
+  })
+
+  it('las pills de prioridad y estado usan las clases de color del mockup', async () => {
+    vi.mocked(api.getInmueble).mockResolvedValue(INMUEBLE_BASE)
+    vi.mocked(api.listDocumentos).mockResolvedValue([])
+    vi.mocked(api.listIncidencias).mockResolvedValue([INCIDENCIA_BASE])
+
+    const { container } = renderFicha()
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /incidencias/i })).toBeInTheDocument())
+    await userEvent.click(screen.getByRole('button', { name: /incidencias/i }))
+
+    await waitFor(() => expect(screen.getByText('Fuga en el grifo de la cocina')).toBeInTheDocument())
+    expect(container.querySelector('.pill.prio-alta')).toBeInTheDocument()
+    expect(container.querySelector('.pill.estado-proceso')).toBeInTheDocument()
   })
 })

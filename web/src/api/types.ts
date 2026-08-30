@@ -189,6 +189,92 @@ export function addAnios(iso: string, anios: number): string {
   return new Date(Date.UTC(y + anios, m - 1, d)).toISOString().slice(0, 10)
 }
 
+// ---- Incidencias (submódulo de Inmuebles, Hito 4) ----
+
+export type PrioridadIncidencia = 'baja' | 'media' | 'alta' | 'urgente'
+export type EstadoIncidencia =
+  | 'abierta'
+  | 'en_proceso'
+  | 'esperando_proveedor'
+  | 'resuelta'
+  | 'cerrada'
+export type OrigenIncidencia = '' | 'inquilino' | 'propietario'
+export type CosteACargoDe = '' | 'propietario' | 'inquilino'
+
+// Recorrido del flujo en orden: cada incidencia nace "abierta" y avanza un
+// paso cada vez hasta "cerrada" (el backend valida las transiciones).
+export const FLUJO_INCIDENCIA: EstadoIncidencia[] = [
+  'abierta',
+  'en_proceso',
+  'esperando_proveedor',
+  'resuelta',
+  'cerrada',
+]
+
+// Categorías del §4.3 del diseño técnico-funcional.
+export const CATEGORIAS_INCIDENCIA = [
+  'fontaneria',
+  'electricidad',
+  'electrodomesticos',
+  'estructura',
+  'plagas',
+  'cerrajeria',
+  'otros',
+] as const
+
+export interface IncidenciaEvento {
+  id: number
+  incidenciaId: number
+  tipo: 'alta' | 'cambio_estado' | 'comentario'
+  estadoAnterior?: EstadoIncidencia
+  estadoNuevo?: EstadoIncidencia
+  comentario?: string
+  creadoEn: string
+}
+
+export interface Incidencia {
+  id: number
+  inmuebleId: number
+  titulo: string
+  descripcion: string
+  categoria: string
+  prioridad: PrioridadIncidencia
+  origen: OrigenIncidencia
+  estado: EstadoIncidencia
+  proveedorNombre: string
+  proveedorContacto: string
+  coste: number
+  costeACargoDe: CosteACargoDe
+  fechaApertura: string
+  fechaCierre: string | null
+  eventos: IncidenciaEvento[]
+  creadoEn: string
+  actualizadoEn: string
+}
+
+// El alta no envía estado (siempre nace "abierta"); en el PUT, un `estado`
+// distinto al guardado mueve la incidencia por el flujo, y un `comentario`
+// no vacío se añade al historial.
+export type IncidenciaInput = Pick<
+  Incidencia,
+  'titulo' | 'descripcion' | 'categoria' | 'prioridad' | 'origen' | 'proveedorNombre' | 'proveedorContacto' | 'coste' | 'costeACargoDe'
+> & { estado?: EstadoIncidencia; comentario?: string }
+
+export const incidenciaVacia = (): IncidenciaInput => ({
+  titulo: '',
+  descripcion: '',
+  categoria: 'fontaneria',
+  prioridad: 'media',
+  origen: '',
+  proveedorNombre: '',
+  proveedorContacto: '',
+  coste: 0,
+  costeACargoDe: '',
+})
+
+// incidenciaAbierta: cuenta para el badge del tab mientras no esté "cerrada".
+export const incidenciaAbierta = (i: Incidencia): boolean => i.estado !== 'cerrada'
+
 export const inmuebleVacio = (): InmuebleInput => ({
   nombre: '',
   direccion: '',
