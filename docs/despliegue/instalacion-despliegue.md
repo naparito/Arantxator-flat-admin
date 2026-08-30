@@ -77,6 +77,21 @@ Este script (ver [`scripts/build.ps1`](../../scripts/build.ps1)) encadena:
    encuentra, avisa y omite este paso sin fallar (el binario sigue siendo
    utilizable con `go run`/`bin/arantxator.exe` para desarrollo).
 
+### 3.1 Publicar el instalador en una release
+
+`dist/` está en `.gitignore` (es un artefacto de build), así que el instalador
+no se versiona: se **adjunta como asset a la release de GitHub** de esa versión.
+Tras `build.ps1`:
+
+```bash
+gh release upload <tag> dist/Arantxator-Setup.exe
+```
+
+Así queda descargable en
+`https://github.com/naparito/Arantxator-flat-admin/releases/download/<tag>/Arantxator-Setup.exe`
+y en la [página de releases](https://github.com/naparito/Arantxator-flat-admin/releases).
+La **v1.0-alpha** ya tiene su `Arantxator-Setup.exe` publicado de esta forma.
+
 ## 4. El icono de la aplicación
 
 `installer/icon.ico` es el isotipo de la marca (el mismo glifo de casa del
@@ -150,7 +165,13 @@ El resultado se deja en `dist/Arantxator-Setup.exe` (carpeta
 
 ## 6. Qué ve el usuario final
 
-1. Descarga `Arantxator-Setup.exe` (un único fichero, ~11 MB).
+1. Descarga `Arantxator-Setup.exe` (un único fichero, ~11 MB) desde la
+   [página de releases del repositorio](https://github.com/naparito/Arantxator-flat-admin/releases/latest).
+   Cada release de GitHub lleva el `.exe` adjunto como asset (se sube tras
+   generarlo con `build.ps1`, ver §3 y §7); `dist/` sigue estando en
+   `.gitignore`, así que el instalador **no** se versiona en el árbol de código,
+   solo se publica en la release. Para un equipo sin acceso a GitHub, basta con
+   copiar ese único fichero por USB / red / correo.
 2. Doble clic. El asistente (en español) pregunta si crear el acceso
    directo del escritorio y dónde instalar — sin conexión a internet en
    ningún paso, sin pedir contraseña de administrador.
