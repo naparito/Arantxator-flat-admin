@@ -1,7 +1,11 @@
 import type {
+  CobroInput,
+  CobroRenta,
   Contrato,
   ContratoInput,
   Documento,
+  Gasto,
+  GastoInput,
   Habitacion,
   HabitacionInput,
   Incidencia,
@@ -10,6 +14,10 @@ import type {
   InmuebleInput,
   Inquilino,
   InquilinoInput,
+  Recibo,
+  RepartoInmueble,
+  RepartoInput,
+  Rentabilidad,
 } from './types'
 
 const API_BASE = '/api'
@@ -96,6 +104,29 @@ export const api = {
     form.append('archivo', file)
     return request<Documento>(`/incidencias/${incidenciaId}/documentos`, { method: 'POST', body: form })
   },
+  listGastos: (inmuebleId: number) => request<Gasto[]>(`/inmuebles/${inmuebleId}/gastos`),
+  createGasto: (inmuebleId: number, data: GastoInput) =>
+    request<Gasto>(`/inmuebles/${inmuebleId}/gastos`, { method: 'POST', body: JSON.stringify(data) }),
+  getGasto: (id: number) => request<Gasto>(`/gastos/${id}`),
+  updateGasto: (id: number, data: GastoInput) =>
+    request<Gasto>(`/gastos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  getRecibo: (gastoId: number) => request<Recibo>(`/gastos/${gastoId}/recibo`),
+  listDocumentosGasto: (gastoId: number) => request<Documento[]>(`/gastos/${gastoId}/documentos`),
+  uploadDocumentoGasto: (gastoId: number, file: File) => {
+    const form = new FormData()
+    form.append('archivo', file)
+    return request<Documento>(`/gastos/${gastoId}/documentos`, { method: 'POST', body: form })
+  },
+  getReparto: (inmuebleId: number) => request<RepartoInmueble>(`/inmuebles/${inmuebleId}/reparto`),
+  createReparto: (inmuebleId: number, data: RepartoInput) =>
+    request<RepartoInmueble>(`/inmuebles/${inmuebleId}/reparto`, { method: 'POST', body: JSON.stringify(data) }),
+  getRentabilidad: (inmuebleId: number, periodo?: string) =>
+    request<Rentabilidad>(`/inmuebles/${inmuebleId}/rentabilidad${periodo ? `?periodo=${periodo}` : ''}`),
+  listCobros: (inmuebleId: number) => request<CobroRenta[]>(`/inmuebles/${inmuebleId}/cobros`),
+  createCobro: (inmuebleId: number, data: CobroInput) =>
+    request<CobroRenta>(`/inmuebles/${inmuebleId}/cobros`, { method: 'POST', body: JSON.stringify(data) }),
+  updateCobro: (id: number, data: CobroInput) =>
+    request<CobroRenta>(`/cobros/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
 }
 
 export type EstadoFilter = Inmueble['estado'] | undefined

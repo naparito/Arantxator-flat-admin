@@ -897,6 +897,218 @@ table.data-table {
   flex: none;
 }
 
+/* ---- Gastos y reparto (Hito 5) ---- */
+.chip.gastos.active {
+  background: var(--gastos);
+  color: #fff;
+  border-color: var(--gastos);
+}
+.tab.active.gastos,
+.tabs .tab.active[data-modulo='gastos'] {
+  border-bottom-color: var(--gastos);
+}
+
+/* Selector de inmueble en la topbar (mismo aire que .search) */
+.prop-select-wrap select {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  max-width: 320px;
+}
+
+.btn-xs {
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+/* Layout de la pantalla Gastos: facturas + recibo a la izquierda, reparto,
+   rentabilidad y cobros a la derecha (como en el mockup aprobado). */
+.gastos-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+  align-items: start;
+  width: 100%;
+}
+@media (max-width: 1040px) {
+  .gastos-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.gastos-grid .col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.data-table tr.row-selected td {
+  background: var(--gastos-soft);
+}
+
+/* Matriz de reparto vigente */
+.reparto-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.reparto-matrix th {
+  padding: 8px 6px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+  font-weight: 600;
+  background: var(--border-soft);
+  text-align: center;
+}
+.reparto-matrix td {
+  padding: 9px 6px;
+  text-align: center;
+  border-top: 1px solid var(--border-soft);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.reparto-matrix td.name-cell {
+  text-align: left;
+  padding-left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.reparto-matrix .swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.reparto-matrix .total-row td {
+  border-top: 1px solid var(--border);
+  font-weight: 700;
+  color: var(--ink-muted);
+}
+
+/* Nota de vigencia bajo la matriz ("Vigente desde … — motivo") */
+.vigencia-note {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  padding: 8px 20px 14px;
+  line-height: 1.5;
+}
+
+/* Recibo individual */
+.receipt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.receipt-total {
+  font-family: 'Instrument Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+.receipt-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-soft);
+}
+.receipt-row:first-of-type {
+  border-top: none;
+}
+.receipt-row.total {
+  border-top: 1px solid var(--border);
+  font-weight: 700;
+}
+.receipt-row .swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.receipt-row .who {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+}
+.receipt-row .pct {
+  font-size: 12px;
+  color: var(--ink-muted);
+  min-width: 44px;
+  text-align: right;
+}
+.receipt-row .amt {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 78px;
+  text-align: right;
+}
+
+/* Rentabilidad */
+.periodo-input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--surface);
+}
+.rent-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  padding: 7px 0;
+}
+.rent-row.bordered {
+  border-top: 1px solid var(--border-soft);
+}
+.rent-row.neto {
+  font-size: 14.5px;
+  padding: 11px 0 0;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+/* Editor de reparto */
+.reparto-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.reparto-input-row span:first-child {
+  flex: 1;
+}
+.reparto-input-row input {
+  width: 84px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 9px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.reparto-input-row .pct-sign {
+  color: var(--ink-faint);
+}
+.reparto-suma {
+  font-size: 12px;
+  font-weight: 600;
+}
+.reparto-suma.ok {
+  color: var(--good);
+}
+.reparto-suma.ko {
+  color: var(--critical);
+}
+
 /* ---- Histórico (timeline) ---- */
 .timeline {
   display: flex;

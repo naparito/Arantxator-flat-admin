@@ -275,6 +275,164 @@ export const incidenciaVacia = (): IncidenciaInput => ({
 // incidenciaAbierta: cuenta para el badge del tab mientras no esté "cerrada".
 export const incidenciaAbierta = (i: Incidencia): boolean => i.estado !== 'cerrada'
 
+// ---- Gastos y reparto (Hito 5) ----
+
+export type TipoGasto =
+  | 'agua'
+  | 'luz'
+  | 'gas'
+  | 'internet'
+  | 'comunidad'
+  | 'ibi'
+  | 'seguro'
+  | 'mantenimiento'
+  | 'basuras'
+  | 'gestoria'
+  | 'otros'
+
+// Mismo orden que domain.TiposGasto (§7.1 del diseño técnico-funcional).
+export const TIPOS_GASTO: TipoGasto[] = [
+  'agua',
+  'luz',
+  'gas',
+  'internet',
+  'comunidad',
+  'ibi',
+  'seguro',
+  'mantenimiento',
+  'basuras',
+  'gestoria',
+  'otros',
+]
+
+export const TIPO_GASTO_LABEL: Record<TipoGasto, string> = {
+  agua: 'Agua',
+  luz: 'Luz',
+  gas: 'Gas',
+  internet: 'Internet',
+  comunidad: 'Comunidad',
+  ibi: 'IBI',
+  seguro: 'Seguro del hogar',
+  mantenimiento: 'Mantenimiento',
+  basuras: 'Basuras',
+  gestoria: 'Gestoría',
+  otros: 'Otros',
+}
+
+export type Periodicidad = '' | 'mensual' | 'bimestral' | 'trimestral' | 'anual'
+export const PERIODICIDADES: Exclude<Periodicidad, ''>[] = [
+  'mensual',
+  'bimestral',
+  'trimestral',
+  'anual',
+]
+
+// El backend guarda "pendiente" o "pagado"; "vencido" es un estado derivado
+// al leer (pendiente + fecha de vencimiento pasada), igual que el de un contrato.
+export type EstadoPago = 'pendiente' | 'pagado' | 'vencido'
+
+export interface Gasto {
+  id: number
+  inmuebleId: number
+  tipo: TipoGasto
+  periodicidad: Periodicidad
+  importe: number
+  fechaEmision: string
+  fechaVencimiento: string | null
+  proveedor: string
+  estadoPago: EstadoPago
+  fechaPago: string | null
+  metodoPago: string
+  creadoEn: string
+  actualizadoEn: string
+}
+
+export type GastoInput = Pick<
+  Gasto,
+  'tipo' | 'periodicidad' | 'importe' | 'fechaEmision' | 'fechaVencimiento' | 'proveedor' | 'metodoPago'
+> & { estadoPago?: EstadoPago; fechaPago?: string | null }
+
+export const gastoVacio = (): GastoInput => ({
+  tipo: 'luz',
+  periodicidad: 'mensual',
+  importe: 0,
+  fechaEmision: '',
+  fechaVencimiento: null,
+  proveedor: '',
+  metodoPago: '',
+  estadoPago: 'pendiente',
+  fechaPago: null,
+})
+
+export interface CuotaReparto {
+  inquilinoId: number
+  porcentaje: number
+}
+
+// VersionReparto es una versión (una vigencia) del reparto de un tipo de
+// gasto: el % de cada inquilino activo. `vigente` = cubre la fecha de hoy.
+export interface VersionReparto {
+  tipoGasto: TipoGasto
+  vigenteDesde: string
+  vigenteHasta: string | null
+  motivo: string
+  vigente: boolean
+  cuotas: CuotaReparto[]
+}
+
+export interface RepartoInmueble {
+  inmuebleId: number
+  versiones: VersionReparto[]
+}
+
+export interface RepartoInput {
+  tipoGasto: TipoGasto
+  vigenteDesde: string
+  motivo: string
+  cuotas: CuotaReparto[]
+}
+
+export interface LineaRecibo {
+  inquilinoId: number
+  porcentaje: number
+  importe: number
+}
+
+export interface Recibo {
+  gastoId: number
+  tipo: TipoGasto
+  fecha: string
+  total: number
+  lineas: LineaRecibo[]
+  sinReparto: boolean
+}
+
+export interface Rentabilidad {
+  inmuebleId: number
+  periodo: string
+  ingresos: number
+  gastos: number
+  neto: number
+}
+
+export interface CobroRenta {
+  id: number
+  inmuebleId: number
+  contratoId: number | null
+  periodo: string
+  importe: number
+  fechaCobro: string | null
+  metodoPago: string
+  notas: string
+  creadoEn: string
+  actualizadoEn: string
+}
+
+export type CobroInput = Pick<CobroRenta, 'periodo' | 'importe' | 'metodoPago' | 'notas'> & {
+  contratoId?: number | null
+  fechaCobro?: string | null
+}
+
 export const inmuebleVacio = (): InmuebleInput => ({
   nombre: '',
   direccion: '',
