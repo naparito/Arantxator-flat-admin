@@ -102,7 +102,7 @@ una) en vez de una única foto de "3 inquilinos" a nivel de piso.
 |---|---|
 | Identificador | Nombre o número de la habitación (ej. "Habitación 1", "Doble exterior") |
 | Características | m², baño propio (sí/no), amueblada, ventana exterior, notas libres |
-| Ocupante | Inquilino que ocupa la habitación actualmente (opcional; se asigna desde la ficha del inquilino una vez existe el módulo de Inquilinos — Hito 2) |
+| Ocupante | Inquilino que ocupa la habitación actualmente (opcional; se asigna desde el tab Habitaciones de la ficha del inmueble — implementado en el Hito 2) |
 
 La relación habitación–inquilino es 1:1 en un momento dado (una habitación
 tiene como mucho un ocupante), pero es independiente del `Contrato`: es la
@@ -316,11 +316,20 @@ Todas las preguntas abiertas de la v0.1 quedaron resueltas el 23/08/2026:
   seguridad = un único fichero, sin riesgo de que un documento quede
   huérfano si falla un borrado a medias.
 
-## 12. Próximos pasos
+## 12. Estado de implementación
 
-1. `go mod tidy` para fijar la dependencia de SQLite.
-2. **Mockups de la GUI** — pantalla por pantalla, con dirección visual
-   limpia, colorida y minimalista. Paso obligatorio antes de picar código
-   de interfaz; todavía no iniciado.
-3. Módulo de Inmuebles end-to-end (API + GUI) como primera vertical
-   completa, en su propia rama con PR hacia `development`.
+Este documento recoge el **análisis y las decisiones** cerradas el 23 ago 2026.
+La implementación se ha realizado por hitos (ver
+[`../plan/plan-implementacion.md`](../plan/plan-implementacion.md)):
+
+1. ~~`go mod tidy` para fijar la dependencia de SQLite.~~ Hecho (Hito 0).
+2. ~~Mockups de la GUI, pantalla por pantalla.~~ Hechos y aprobados; guían la SPA.
+3. ~~Módulo de Inmuebles end-to-end.~~ Hecho (Hito 1), y a continuación
+   Inquilinos (2), Contratos (3), Incidencias (4), Gastos y reparto (5),
+   Dashboard y notificaciones (6) y el instalador de Windows (7).
+
+La **v1.0-alpha** está funcionalmente completa en `development`. Para el detalle
+de uso de cada módulo ya construido, ver el
+[**manual funcional**](../manual/README.md). Pendiente: llevar `development` a
+`main` como primera release y probar el instalador en una máquina Windows sin
+herramientas de desarrollo.
